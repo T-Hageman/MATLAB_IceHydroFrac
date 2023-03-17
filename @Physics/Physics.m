@@ -21,6 +21,8 @@ classdef Physics < handle
         convals_corr
         conMat
         unconMat
+		nonz
+
         ArcTime
         tType
     end
@@ -51,6 +53,7 @@ classdef Physics < handle
             dofcount = obj.dofSpace.NDofs;
             obj.StateVec = zeros(dofcount, 1);
             obj.StateVec_Old = obj.StateVec;
+			obj.nonz = 0;
 
 			obj.VAvec = zeros(dofcount,2);
 			obj.VAvecOld = zeros(dofcount,2);
@@ -65,7 +68,6 @@ classdef Physics < handle
 			obj.condofs = [];
 			obj.convals = [];
 
-            nonz = round(nnz(obj.K));
             if (obj.ArcTime.Enable)
                 TDof = obj.dofSpace.getDofIndices(obj.tType, 1);
                 obj.dt = obj.StateVec(TDof) - obj.StateVec_Old(TDof);
@@ -79,8 +81,13 @@ classdef Physics < handle
 % 				end
             else
                 %obj.dt = dt0;
-            end
-            obj.K = spalloc(dofcount, dofcount, nonz);
+			end
+			if isempty(obj.K)
+
+			else
+				obj.nonz = round(nnz(obj.K));
+			end
+            obj.K = spalloc(dofcount, dofcount, obj.nonz);
             obj.fint = zeros(dofcount, 1);
 
             disp("    Assembling:")
@@ -114,6 +121,7 @@ classdef Physics < handle
 
                 obj.StateVec_Old = obj.StateVec;
 				obj.VAvecOld = obj.VAvec;
+				obj.K = [];
             end
         end
         

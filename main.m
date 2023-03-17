@@ -1,9 +1,9 @@
-%function main_TSweep(irun, hasVisc)
+function main(irun, hasVisc)
 
-	hasVisc=1;
+	hasVisc=hasVisc;
 	HIce = 980;
 	dx_elem = 2.5;
-	T_Ice = 0;
+	T_Ice = -(irun-1); %x11, 0--10
 	meshName = "mesh_Das_25.mphtxt";
 
 	flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
@@ -12,8 +12,10 @@
 	else
 		savefolder = "./Results_NoVisc";
 	end
+	savefolder=savefolder+"/"+string(T_Ice);
 	mkdir(savefolder);
-	savefolder=savefolder+"/";
+	savefolder = savefolder + "/";
+	
 
 	fprintf('Starting job\n')
 	maxNumCompThreads(16);
@@ -109,7 +111,7 @@
     	physics_in{8}.Egroup = "Fracture";
     	physics_in{8}.p0 = 1.0e5;
     	physics_in{8}.dummy = 1e-6;
-		physics_in{8}.Reference = 20;%1;
+		physics_in{8}.Reference = 1;
 	
 		physics_in{9}.type = "Inertia";
 		physics_in{9}.Egroup = "Internal";
@@ -120,19 +122,19 @@
     	%% solver inputs
     	solver_in.maxIt = 100;
     	solver_in.Conv = 1e-6;
-    	solver_in.tiny = 1;%1e-6;
+    	solver_in.tiny = 0.1;%1e-6;
     	solver_in.linesearch = true;
     	solver_in.linesearchLims = [0.1 1.0];
 	
     	%% initialization
     	mesh = Mesh(mesh_in);
-    	mesh.plot(true, true, false, false);
+    	%mesh.plot(true, true, false, false);
     	mesh.check();
 	
     	physics = Physics(mesh, physics_in, ArcTime, dt0);
     	physics.time = 0.0;
 	
-    	n_max = 4000;
+    	n_max = 3600;
     	solver = Solver(physics, solver_in);
     	TimeSeries.tvec = 0;
     	TimeSeries.Lfrac = [mesh.Area(9)];
@@ -146,10 +148,6 @@
     	filename = savefolder+string(restart_num);
     	load(filename, "mesh","physics","solver","dt","n_max", "TimeSeries");
     	startstep = restart_num+1;
-		solver.tiny = 0.1;
-		%solver.linesearch = false;
-		solver.linesearchLims = [0.1 1];
-		physics.models{3}.dummy = 0;
 	end
 	
 	fprintf('Starting timesteps\n')
@@ -172,7 +170,7 @@
 	
     	%close all
 		if mod(tstep, 10) == 0
-			if (true)
+			if (false)
 				plotres(physics, TimeSeries);
 			end
         	
@@ -187,14 +185,14 @@
 		end
 	end
 	
-	if (true)
-		plotres(physics, tvec, Lfrac, Qvec, MeltqVec);
+	if (false)
+		plotres(physics, TimeSeries);
 	end
 	filename = savefolder+"End";
 	save(filename, "mesh","physics","solver","dt","n_max","TimeSeries");
 	
 	toc(tmr)
-%end
+end
 
 
 	function plotres(physics, TimeSeries)
