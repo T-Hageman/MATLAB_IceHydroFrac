@@ -42,15 +42,7 @@ classdef Inertia < BaseModel
             fprintf("        Inertia get Matrix:")
             t = tic;
             
-			if (physics.ArcTime.Enable)
-                ArcTime = true;
-                TDof = physics.dofSpace.getDofIndices(physics.tType, 1);
-                dt = physics.StateVec(TDof) - physics.StateVec_Old(TDof);
-            else
-                TDof = 1;
-                ArcTime = false;
-                dt = physics.dt;
-            end
+            dt = physics.dt;
 
             if (length(obj.myK) == length(physics.fint))
                 recalc = false;
@@ -60,7 +52,6 @@ classdef Inertia < BaseModel
             
 			physics.VAvec(:,1) = obj.gamma/(obj.beta*dt)*(physics.StateVec-physics.StateVec_Old)-(obj.gamma/obj.beta-1)*physics.VAvecOld(:,1)-dt*(obj.gamma/obj.beta/2-1)*physics.VAvecOld(:,2);
             physics.VAvec(:,2) = 1/(obj.beta*dt^2)*(physics.StateVec-physics.StateVec_Old)-1/(obj.beta*dt)*physics.VAvecOld(:,1)-(1/obj.beta/2-1)*physics.VAvecOld(:,2);
-			dVAvec_dt = -2/(obj.beta*dt^3)*(physics.StateVec-physics.StateVec_Old)+1/(obj.beta*dt^2)*physics.VAvecOld(:,1);
 
             if (recalc == true)
                 dofmatX = [];
@@ -99,28 +90,10 @@ classdef Inertia < BaseModel
             end
             physics.fint = physics.fint + obj.myK*physics.VAvec(:,2);
             physics.K = physics.K + obj.myK*(1/obj.beta/dt^2);
-			if (physics.ArcTime.Enable)
-				physics.K(:,TDof) = physics.K(:,TDof) + obj.myK*dVAvec_dt;
-			end
             
             tElapsed = toc(t);
             fprintf("            (Assemble time:"+string(tElapsed)+")\n");
-        end
-        
-        function B = getB(~, grads)
-            cp_count = size(grads, 2);
-            B = zeros(4, cp_count*2);
-            for ii = 1:cp_count %using plane strain e_zz = 0
-				%dx
-				B(1, ii) = grads(1,ii, 1);
-				B(4, ii) = grads(1,ii, 2);
-
-				%dy
-				B(2, ii + cp_count) = grads(1,ii, 2);
-				B(4, ii + cp_count) = grads(1,ii, 1);
-            end
 		end
-        
     end
 end
 

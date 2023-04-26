@@ -58,23 +58,14 @@ classdef LakeBoundary < BaseModel
             PD = physics.StateVec(dofsPD);
 
             time = physics.time+physics.dt;
-            if (time<0)
-               ptarget = time/20 * obj.p0;
-            else
-               ptarget = obj.p0;
-            end
+            ptarget = obj.p0;
             
-            q = obj.kdummy * (ptarget-PD); %1e-3;%
+            q = obj.kdummy * (ptarget-PD); 
             k = -obj.kdummy;
-                
-            %physics.condofs = [physics.condofs; dofsPD];
-            %physics.convals = [physics.convals; dofsPD*0+ptarget];
             
             physics.fint(dofsPD) = physics.fint(dofsPD) + q;
             physics.K(dofsPD, dofsPD) = physics.K(dofsPD, dofsPD) + k;
 
-
-            
             tElapsed = toc(t);
             fprintf("        (Assemble time:"+string(tElapsed)+")\n");
         end

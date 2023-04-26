@@ -1,6 +1,9 @@
-function main(irun, hasVisc)
+%function main(irun, hasVisc)
 
-	hasVisc=hasVisc;
+	addpath(genpath('./Models'))
+	addpath(genpath('./Shapes'))
+
+	hasVisc=1;
 	HIce = 980;
 	dx_elem = 2.5;
 	T_Ice = -(irun-1); %x11, 0--10
@@ -8,20 +11,16 @@ function main(irun, hasVisc)
 
 	flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
 	if (hasVisc == 1)
-		savefolder = "./Results_Visc";
+		savefolder = "./Results/Visc_";
 	else
-		savefolder = "./Results_NoVisc";
+		savefolder = "./Results/NoVisc_";
 	end
-	savefolder=savefolder+"/"+string(T_Ice);
+	savefolder=savefolder+flowtype;
 	mkdir(savefolder);
 	savefolder = savefolder + "/";
 	
-
 	fprintf('Starting job\n')
 	maxNumCompThreads(16);
-	
-	addpath(genpath('./Models'))
-	addpath(genpath('./Shapes'))
 	
 	delete(gcp('nocreate'))
 	parpool('threads')
@@ -50,12 +49,6 @@ function main(irun, hasVisc)
 		mesh_in.zeroWeight = true;
 	
     	%physics models
-    	ArcTime.Enable = false;
-    	ArcTime.TMin = 0.1; %1e-3
-    	ArcTime.TMax = 60;
-    	ArcTime.KStab = 1e4;
-    	ArcTime.KDummy = 1e7;
-    	ArcTime.Tol = 1e2;
     	dt0 = 2;
 	
     	physics_in{1}.type = "ViscoElastic";
@@ -131,7 +124,7 @@ function main(irun, hasVisc)
     	%mesh.plot(true, true, false, false);
     	mesh.check();
 	
-    	physics = Physics(mesh, physics_in, ArcTime, dt0);
+    	physics = Physics(mesh, physics_in, dt0);
     	physics.time = 0.0;
 	
     	n_max = 3600;
@@ -192,7 +185,7 @@ function main(irun, hasVisc)
 	save(filename, "mesh","physics","solver","dt","n_max","TimeSeries");
 	
 	toc(tmr)
-end
+%end
 
 
 	function plotres(physics, TimeSeries)
