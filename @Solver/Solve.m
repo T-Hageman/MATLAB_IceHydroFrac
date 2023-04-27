@@ -78,21 +78,9 @@ function Solve(obj)
         En_err_n = En_err/En_err0;
 		         
         fprintf("    Residual:" + string(En_err_n) + "   ("+string(En_err)  +") \n");
-        if (obj.physics.ArcTime.Enable)
-			[~,fc_error,~,~] = obj.physics.models{3}.get_fc(obj.physics);
-			fc_error = abs(fc_error);
-            fprintf("    dt:" + obj.physics.dt + "\n");
-			fprintf("    fc error:" + string(fc_error)  +"\n");
-
-			if (En_err_n<1e-4)
-				con_dt = false;
-			end
-		else
-			fc_error = 0;
-		end
         
         it=it+1;
-        if (it>curr_max_it || ((En_err_n<obj.Conv || En_err<obj.tiny) && fc_error<obj.physics.ArcTime.Tol))
+        if (it>curr_max_it || ((En_err_n<obj.Conv || En_err<obj.tiny)))
             obj.physics.Commit("Pathdep");
             irr = obj.physics.Irreversibles();
             if (irr == false || obj.physics.ArcTime.Enable == true)

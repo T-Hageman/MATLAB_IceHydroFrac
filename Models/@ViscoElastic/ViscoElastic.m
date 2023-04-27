@@ -16,12 +16,17 @@ classdef ViscoElastic < BaseModel
         D_el2
         Hmatswitch
         myK
-		A
+		A0
+		Q
+		TRef
+		T_Ice
 		n
 		P
 		FVisc;
 		strain_visc;
 		strain_viscOld;
+
+		R = 8.31446261815324;
     end
     
     methods
@@ -42,8 +47,11 @@ classdef ViscoElastic < BaseModel
             obj.poisson = inputs.poisson;
             obj.young = inputs.young;
             obj.Hmatswitch = inputs.Hmatswitch;
-			obj.A = inputs.A;
+			obj.A0 = inputs.A0;
 			obj.n = inputs.n;
+			obj.Q = inputs.Q;
+			obj.TRef = inputs.TRef;
+			obj.T_Ice = inputs.T_Ice;
             
             D_el = zeros(4,4);
             a = obj.young(1) / ((1.0 + obj.poisson(1)) * (1.0 - 2.0*obj.poisson(1)));
@@ -93,7 +101,7 @@ classdef ViscoElastic < BaseModel
                 obj.UpdateVisc(physics);
 			end
 			if (commit_type == "StartIt")
-				if (obj.A>0)
+				if (obj.A0>0)
 					obj.UpdateVisc(physics);
 				end
             end
@@ -112,7 +120,7 @@ classdef ViscoElastic < BaseModel
 				sol = sol +dsol;
 
 				fOld = f;
-				[K,f] = obj.return_mapping_getKF(sol, strain_total, strain_ve_old, A, D, dt);
+				[~,f] = obj.return_mapping_getKF(sol, strain_total, strain_ve_old, A, D, dt);
 
 				LineSearch = -fOld'*dsol/((f'-fOld')*dsol);
 				LineSearch = min(max(LineSearch, 1e-1), 1);
@@ -153,13 +161,8 @@ classdef ViscoElastic < BaseModel
 			fvec = [];
             dofvec = [];
 			SVec = physics.StateVec;
+            dt = physics.dt;
 
-			if (physics.ArcTime.Enable)
-                TDof = physics.dofSpace.getDofIndices(physics.tType, 1);
-                dt = physics.StateVec(TDof) - physics.StateVec_Old(TDof);
-			else
-                dt = physics.dt;
-            end
 			strain_viscTosave = [];
 			parfor n_el=1:size(obj.mesh.Elementgroups{obj.myGroupIndex}.Elems, 1)
                 Elem_Nodes = obj.mesh.getNodes(obj.myGroupIndex, n_el);
@@ -179,13 +182,14 @@ classdef ViscoElastic < BaseModel
 				for ip=1:length(w)
                     B = obj.getB(G(ip,:,:));
                     strain = B*XY;
-                        if (xy(2,ip) < obj.Hmatswitch)
-                            Aloc = 0;
-                            D = obj.D_el2;                       
-                        else
-                            Aloc = obj.A;
-                            D = obj.D_el;
-                        end
+                    if (xy(2,ip) < obj.Hmatswitch)
+                        Aloc = 0;
+                        D = obj.D_el2;                       
+					else
+						T_Here = obj.T_Ice(xy(2,ip))+273.15;
+                        Aloc = obj.A0*exp(-obj.Q/obj.R * (1/T_Here-1/obj.TRef));
+                        D = obj.D_el;
+                    end
                     %stress = obj.D_el*(strain-squeeze(obj.strain_viscOld(n_el,ip,1:4)));
 
 					%dVPStrain_dt = Aloc*(max(1e-6,0.5*stress'*obj.P'*obj.P*stress))^((obj.n-1)/2)*obj.P*stress;
@@ -221,7 +225,6 @@ classdef ViscoElastic < BaseModel
             else
                 recalc = true;
             end
-            
             
             if (recalc == true)
                 dofmatX = [];
@@ -265,7 +268,7 @@ classdef ViscoElastic < BaseModel
                 obj.myK = sparse(dofmatX, dofmatY, kmat, length(physics.fint),length(physics.fint));
             end
             physics.fint = physics.fint + obj.myK*physics.StateVec ;
-			if (obj.A>0)
+			if (obj.A0>0)
 				physics.fint = physics.fint + obj.FVisc;
 			end
             physics.K = physics.K + obj.myK;

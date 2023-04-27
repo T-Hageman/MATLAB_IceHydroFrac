@@ -10,7 +10,6 @@ classdef FractureFluid < BaseModel
         dofSpace
         dofTypeIndices
         
-        QTip
         FlowModel
         visc
         Kf
@@ -61,7 +60,6 @@ classdef FractureFluid < BaseModel
             
             obj.dofSpace.addDofs(obj.dofTypeIndices, halfnodes);
             
-            obj.QTip = inputs.QTip;
             obj.FlowModel = inputs.FlowModel;
             obj.visc = inputs.visc;
             obj.Kf = inputs.Kf;
@@ -150,17 +148,9 @@ classdef FractureFluid < BaseModel
             fprintf("        FractureFluid get Matrix:")
             t = tic;
 
-            if (physics.ArcTime.Enable)
-                ArcTime = true;
-                TDof = physics.dofSpace.getDofIndices(physics.tType, 1);
-                dt = physics.StateVec(TDof) - physics.StateVec_Old(TDof);
-				tOld = physics.StateVec_Old(TDof);
-            else
-                TDof = -1;
-                ArcTime = false;
-                dt = physics.dt;
-				tOld = physics.time;
-            end
+            dt = physics.dt;
+			tOld = physics.time;
+
 
 			while (size(obj.qxSaved, 1)<size(obj.mesh.Elementgroups{obj.myGroupIndex}.Elems, 1))
 				obj.qxSaved(end+1,:) = 0.0;
@@ -187,9 +177,6 @@ classdef FractureFluid < BaseModel
                 
                 physics.fint(Tdofs) = physics.fint(Tdofs) + q_el;
                 physics.K(Tdofs, Tdofs) = physics.K(Tdofs, Tdofs) + K_el;
-
-% 				physics.condofs = [physics.condofs; Tdofs(2)];
-%                 physics.convals = [physics.convals; 9.81*500*910*0.5];
             end
             
             dofmatX = [];
@@ -213,6 +200,7 @@ classdef FractureFluid < BaseModel
                 Elem_Nodes   = obj.mesh.getNodes(obj.myGroupIndex, n_el);
                 [N, G, w]    = obj.mesh.getVals(obj.myGroupIndex, n_el);
                 [nvec, tvec] = obj.mesh.getNormals(obj.myGroupIndex, n_el);
+				xy = obj.mesh.getIPCoords(obj.myGroupIndex, n_el);
                 
                 dofsX = obj.dofSpace.getDofIndices(obj.dofTypeIndices(1), Elem_Nodes);
                 dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), Elem_Nodes);
@@ -235,13 +223,6 @@ classdef FractureFluid < BaseModel
                 f_p = zeros(length(dofsPD), 1);
                 K_pu = zeros(length(dofsPD), length(dofsXY));
                 K_pp = zeros(length(dofsPD), length(dofsPD));
-                K_pt = zeros(length(dofsPD), 1);
-                
-                if (n_el == 1)
-                    f_p(1) = f_p(1) + obj.QTip;
-                    %physics.condofs = [physics.condofs; dofsPD(1)];
-                    %physics.convals = [physics.convals; 0];
-                end
                 
                 g = [0;-9.81];
 				C_Lumped = zeros(size(N, 2),1);
@@ -258,15 +239,16 @@ classdef FractureFluid < BaseModel
                     
 					%% displacement opening fluid flux
                     f_p  = f_p  - w(ip)*N(ip,:)'*(ujump-ujumpOld)/dt;
-                    K_pu = K_pu - w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt*0.5;
+                    K_pu = K_pu - w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt;
 					
 
 					%% Return mapping scheme
+					Ice_temp = obj.T_ice(xy(2,ip));
 					hMelt_hist = obj.hmeltOld(n_el, ip);
 					tfr = obj.tfrac(n_el, ip);
-					initGuess = [obj.qxSavedOld(n_el, ip); obj.hmeltOld(n_el, ip); obj.hmeltOld(n_el, ip)+ujump];
-		%			initGuess = [obj.qxSaved(n_el, ip); obj.hmelt(n_el, ip); obj.hmelt(n_el, ip)+ujump];
-					[qx, hmelt_ip, h, derivs, Qprod] = obj.get_qx_hmelt_h(dp_dx, ujump, tfr, tOld, dt, hMelt_hist, initGuess);
+					%initGuess = [obj.qxSavedOld(n_el, ip); obj.hmeltOld(n_el, ip); obj.hmeltOld(n_el, ip)+ujump];
+					initGuess = [obj.qxSaved(n_el, ip); obj.hmelt(n_el, ip); obj.hmelt(n_el, ip)+ujump];
+					[qx, hmelt_ip, h, derivs, Qprod] = obj.get_qx_hmelt_h(dp_dx, ujump, tfr, tOld, dt, hMelt_hist, initGuess, Ice_temp);
 				
 
 					Q_Update = Q_Update + Qprod*w(ip)*dt;
@@ -274,11 +256,10 @@ classdef FractureFluid < BaseModel
 					qx_ips(n_el, ip) = qx;
 
 					%% wall melting
-					f_p = f_p - (1-obj.rho_ice/obj.rho_water)*w(ip)*N(ip,:)'*(hmelt_ip-hMelt_hist)/dt;
+					f_p = f_p   - w(ip)*(1-obj.rho_ice/obj.rho_water)/dt*N(ip,:)'*(hmelt_ip-hMelt_hist);
 
-					K_pu = K_pu - w(ip)*(1-obj.rho_ice/obj.rho_water)*derivs.hmelt_du*N(ip,:)'*nvec(ip,:)*Nd;
-                    K_pp = K_pp - w(ip)*(1-obj.rho_ice/obj.rho_water)*derivs.hmelt_dpdx*N(ip,:)'*G(ip,:,1);
-                    K_pt = K_pt - w(ip)*(1-obj.rho_ice/obj.rho_water)*N(ip,:)'*(-(hmelt_ip-hMelt_hist)/dt^2+derivs.hmelt_dt/dt);
+					K_pu = K_pu - w(ip)*(1-obj.rho_ice/obj.rho_water)/dt*derivs.hmelt_du*N(ip,:)'*nvec(ip,:)*Nd;
+                    K_pp = K_pp - w(ip)*(1-obj.rho_ice/obj.rho_water)/dt*derivs.hmelt_dpdx*N(ip,:)'*G(ip,:,1);
 
 					MeltProd = MeltProd + obj.rho_ice/obj.rho_water*w(ip)*(hmelt_ip-hMelt_hist);
 
@@ -287,19 +268,17 @@ classdef FractureFluid < BaseModel
 
                     K_pu = K_pu + w(ip)*G(ip,:,1)'*derivs.qx_du*nvec(ip,:)*Nd;
                     K_pp = K_pp + w(ip)*G(ip,:,1)'*derivs.qx_dpdx*G(ip,:,1);
-                    K_pt = K_pt + w(ip)*G(ip,:,1)'*derivs.qx_dt;
 
                     %% compressibility
 					hn = h;
-					if (h<1e-3)
-						hn=1e-3;
-					end
+					%if (h<1e-3)
+					%	hn=1e-3;
+					%end
 
                     f_p  = f_p - w(ip) * h/obj.Kf * N(ip,:)'*N(ip,:)*(PD-PDOld)/dt;
 
                     K_pu = K_pu - w(ip)*N(ip,:)'*derivs.h_du*nvec(ip,:)*Nd * 1/obj.Kf * (N(ip,:)*(PD-PDOld))/dt ;
-                    K_pp = K_pp - w(ip)*N(ip,:)'*(1/obj.Kf*derivs.h_dpdx*G(ip,:,1)*(N(ip,:)*(PD-PDOld)/dt) + hn/obj.Kf * N(ip,:)/dt);
-                    %K_pt = K_pt - w(ip)*N(ip,:)'*(dh/obj.Kf*derivs.h_dt*(N(ip,:)*(PD-PDOld)/dt) - hn/obj.Kf * N(ip,:)*(PD-PDOld)/dt^2);				
+                    K_pp = K_pp - w(ip)*N(ip,:)'*(1/obj.Kf*derivs.h_dpdx*G(ip,:,1)*(N(ip,:)*(PD-PDOld)/dt) + hn/obj.Kf * N(ip,:)/dt);			
                 end
                 
                 for cp=1:length(C_Lumped)
@@ -311,7 +290,7 @@ classdef FractureFluid < BaseModel
                     f_u  = f_u  - C_Lumped(cp)*(Nd'*n_est'*NL)*PD;
                     K_up = K_up - C_Lumped(cp)*(Nd'*n_est'*NL);
 
-					%K_pp(cp,cp) = K_pp(cp,cp) + C_Lumped(cp)*1e-2;
+					K_pp(cp,cp) = K_pp(cp,cp) - C_Lumped(cp)*1e-5; %some extra damping/stabilisation
                 end
 
 				%forces
@@ -336,13 +315,6 @@ classdef FractureFluid < BaseModel
 				dofmatX = [dofmatX; dofmatxloc(:)];
 				dofmatY = [dofmatY; dofmatyloc(:)];
 				kmat = [kmat; K_pp(:)];
-				
-				if ArcTime
-					[dofmatxloc,dofmatyloc] = ndgrid(dofsPD,TDof);
-					dofmatX = [dofmatX; dofmatxloc(:)];
-					dofmatY = [dofmatY; dofmatyloc(:)];
-					kmat = [kmat; K_pt(:)];
-				end
             end 
 
             physics.fint = physics.fint + sparse(dofvec, 0*dofvec+1, fvec, length(physics.fint), 1);
@@ -357,11 +329,10 @@ classdef FractureFluid < BaseModel
             fprintf("        (Assemble time:"+string(tElapsed)+")\n");
 		end
 
-		function [qx, hmelt, h, derivs, Qprod] = get_qx_hmelt_h(obj, dp_dx, u, tfr, tOld, dt, hMelt_hist, initGuess)
-			if (u<max(0,hMelt_hist))
-				u=max(0,hMelt_hist);
-			end
-
+		function [qx, hmelt, h, derivs, Qprod] = get_qx_hmelt_h(obj, dp_dx, u, tfr, tOld, dt, hMelt_hist, initGuess, Ice_temp)
+			% if (u<max(0,hMelt_hist))
+			% 	u=max(0,hMelt_hist);
+			% end
 
 			stop = false;
 			sol = initGuess;
@@ -369,7 +340,7 @@ classdef FractureFluid < BaseModel
 
 			it=0;
 
-			[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist);
+			[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp);
 			while (stop == false)
 				if (sum(isnan(sol)+isinf(sol))>0)
 					something wrong here
@@ -382,7 +353,7 @@ classdef FractureFluid < BaseModel
 				sol = sol+dsol;
 
 				fOld = f;
-				[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist);
+				[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp);
 
 				%linesearch
 				LineSearch = -fOld'*dsol/((f'-fOld')*dsol);
@@ -390,7 +361,7 @@ classdef FractureFluid < BaseModel
 
 				sol = sol-(1-LineSearch)*dsol;
 
-				[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist);
+				[f, C, D] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp);
 
 				% error
 				if (it==0)
@@ -417,7 +388,7 @@ classdef FractureFluid < BaseModel
 			h = sol(3);
 
 			%derivatives
-			[f, C, D, Qprod] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist);
+			[f, C, D, Qprod] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp);
 
 			%[E,F,G] = equilibrate(C);
 			%drvs = -G*((F*E*C*G)\(F*E*D));
@@ -437,12 +408,12 @@ classdef FractureFluid < BaseModel
 
 		end
         
-		function [f, C, D, Qres] = getFracK(obj, sol, dp_dx, u, tfr, tOld, dt, hMelt_hist)
+		function [f, C, D, Qres] = getFracK(obj, sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp)
 			f = [0;0;0];
 			C = zeros(3,3);
 			D = zeros(3,3);
 
-			smallH = 5e-3;
+			smallH = 1e-6;
 
 			%if (u+hMelt_hist<0)
 			%	u=-hMelt_hist;
@@ -450,28 +421,25 @@ classdef FractureFluid < BaseModel
 
 			hFlow = sol(3);
 			dh=1.0;
-			if (hFlow < smallH)
-				hFlow = smallH;
-				dh = 0.0;
-			end
+			% if (hFlow < smallH)
+			% 	hFlow = smallH;
+			% 	%dh = 0.0;
+			% end
 
-			[qxFlow, dqx_dh, dqx_dpdx] = obj.getFlow(dp_dx, hFlow, 0);
+			[qxFlow, dqx_dh, dqx_dpdx] = obj.getFlow(dp_dx, hFlow);
 
 			ThermCap = obj.rho_ice*obj.melt_heat; 
-			if (obj.freeze)
-				Qfreeze = 2*obj.k_ice^0.5*obj.T_ice*(obj.rho_ice*obj.cp_ice)^0.5*pi^(-0.5)*(tOld+dt-tfr)^(-0.5);
-				dQfreeze_dt = 2*-1/2*obj.k_ice^0.5*obj.T_ice*(obj.rho_ice*obj.cp_ice)^0.5*pi^(-0.5)*(tOld+dt-tfr)^(-1.5);
-			else
-				Qfreeze = 0;
-				dQfreeze_dt = 0;
-			end
+			Qfreeze = 2*obj.k_ice^0.5*Ice_temp*(obj.rho_ice*obj.cp_ice)^0.5*pi^(-0.5)*(tOld+dt-tfr)^(-0.5);
+
 			if (obj.melt)
 				Qmelt = -sol(1)*dp_dx;
-				dQmelt = 1;
+				dQmelt_ds = -dp_dx;
+				dQmelt_dp = -sol(1);
 			else
 				Qmelt = 0;
 				dQmelt = 0;
 			end
+
 			Q = Qfreeze + Qmelt;
 			Qres(1) = Qfreeze;
 			Qres(2) = Qmelt;
@@ -485,36 +453,46 @@ classdef FractureFluid < BaseModel
 			C(1,1) = 1; 
 			C(1,2) = 0;
 			C(1,3) = -dqx_dh*dh;
-			C(2,1) = dp_dx*dQmelt;
+			C(2,1) = -dQmelt_ds;
 			C(2,2) = ThermCap/dt;
 			C(2,3) = 0;
 			C(3,1) = 0; 
 			C(3,2) = -1;
 			C(3,3) = 1;
 
+			if (sol(3)<smallH)
+				f(3) = f(3) + 1e5*(sol(3)-smallH)^2;
+				C(3,3) = C(3,3) + 2*1e5*(sol(3)-smallH);
+			end
+
 			% dpdx, ujump, t
-			D(1,1) = -dqx_dpdx*0.5;
+			D(1,1) = -dqx_dpdx;%*0.5;
 			D(1,2) = 0;
 			D(1,3) = 0;
-			D(2,1) = sol(1)*dQmelt;
+			D(2,1) = -dQmelt_dp;
 			D(2,2) = 0;
 			D(2,3) = -(sol(2)-hMelt_hist)*ThermCap/dt^2;
 			D(3,1) = 0;
-			D(3,2) = -1*0.5;
+			D(3,2) = -1;%*0.5;
 			D(3,3) = 0;
 		end
 
-		function [qxFlow, dqx_dh, dqx_dpdx] = getFlow(obj, dp_dx, h, hOffset)
+		function [qxFlow, dqx_dh, dqx_dpdx] = getFlow(obj, dp_dx, h)
+			if (h<0) 
+				h=0; 
+			end
+
         	if (obj.FlowModel == "CubicLaw")
             	qxFlow = -h^3/(12*obj.visc)*dp_dx;
-            	dqx_dh = -3*(h+hOffset)^2/(12*obj.visc)*dp_dx;
-            	dqx_dpdx = -(h+hOffset)^3/(12*obj.visc);
+            	dqx_dh = -3*(h)^2/(12*obj.visc)*dp_dx;
+            	dqx_dpdx = -(h)^3/(12*obj.visc);
         	end
         	if (obj.FlowModel == "FrictionFactor")
             	k = 1e-2; f0 = 0.143;
-            	qxFlow = -(max(1,abs(dp_dx)))^(-0.5)*dp_dx*h^(5/3)*obj.rho_water^(-0.5)*k^(-1/6)*sqrt(4)*f0^(-0.5);
-            	dqx_dh = -5/3*(max(1,abs(dp_dx)))^(-0.5)*dp_dx*(h+hOffset)^(2/3)*obj.rho_water^(-0.5)*k^(-1/6)*sqrt(4)*f0^(-0.5);
-            	dqx_dpdx = -0.5*(max(1,abs(dp_dx)))^(-0.5)*(h+hOffset)^(5/3)*obj.rho_water^(-0.5)*k^(-1/6)*sqrt(4)*f0^(-0.5);
+				preFac = obj.rho_water^(-0.5)*k^(-1/6)*sqrt(4)*f0^(-0.5);
+            	qxFlow   = -preFac    *(max(1,abs(dp_dx)))^(-0.5)*dp_dx*h^(5/3);
+            	dqx_dh   = -preFac*5/3*(max(1,abs(dp_dx)))^(-0.5)*dp_dx*h^(2/3);
+            	dqx_dpdx = -preFac*0.5*(max(1,abs(dp_dx)))^(-0.5)*h^(5/3);
         	end
 		end
 

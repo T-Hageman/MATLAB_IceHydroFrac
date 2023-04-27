@@ -6,7 +6,11 @@
 	hasVisc=1;
 	HIce = 980;
 	dx_elem = 2.5;
-	T_Ice = "profile"; 
+	if false
+		%T_Ice = @(y) -3+0*y; 
+	else
+		load("TProfile.mat","T_Ice");
+	end
 	meshName = "mesh_Das_25.mphtxt";
 
 	flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
@@ -55,8 +59,11 @@
     	physics_in{1}.Egroup = "Internal";
     	physics_in{1}.young = [9e9; 20e9]; %[9e9; 20e9];
     	physics_in{1}.poisson = [0.33; 0.25]; %[0.33; 0.25];
-		physics_in{1}.A = hasVisc*5e-24;
+		physics_in{1}.A0 = hasVisc*5e-24;
+		physics_in{1}.Q = 150e3;
+		physics_in{1}.TRef = 273.15;
 		physics_in{1}.n = 3;
+		physics_in{1}.T_Ice = T_Ice;
     	physics_in{1}.Hmatswitch = 0;
 	
     	physics_in{2}.type = "SelfWeight";
@@ -67,12 +74,11 @@
     	physics_in{3}.Egroup = "Fracture";
     	physics_in{3}.tensile = 0.3e6;
     	physics_in{3}.energy = (5.0e-3)*physics_in{3}.tensile;
-    	physics_in{3}.dummy = 1e10; %1e10
+    	physics_in{3}.dummy = 0; %1e10
     	physics_in{3}.Hmatswitch = 0;
 	
     	physics_in{4}.type = "FractureFluid";
     	physics_in{4}.Egroup = "Fracture";
-    	physics_in{4}.QTip = 0;
     	physics_in{4}.visc = 1.0e-3;
     	physics_in{4}.Kf   = 1.0e9;
     	physics_in{4}.FlowModel = flowtype;%"CubicLaw";"FrictionFactor"
@@ -102,6 +108,7 @@
 	
     	physics_in{8}.type = "LakeBoundary";
     	physics_in{8}.Egroup = "Fracture";
+		physics_in{8}.Surface = "Top";
     	physics_in{8}.p0 = 1.0e5;
     	physics_in{8}.dummy = 1e-6;
 		physics_in{8}.Reference = 1;
@@ -125,32 +132,46 @@
     	mesh.check();
 	
     	physics = Physics(mesh, physics_in, dt0);
-    	physics.time = 0.0;
+    	physics.time = -3600*24;
 	
-    	n_max = 3600;
+    	t_max = 3600*2;
     	solver = Solver(physics, solver_in);
-    	TimeSeries.tvec = 0;
+    	TimeSeries.tvec = physics.time;
     	TimeSeries.Lfrac = [mesh.Area(9)];
 		TimeSeries.Qvec = [0,0,0];
 		TimeSeries.MeltqVec = 0;
 		TimeSeries.Qinflow = 0;
 		TimeSeries.qCurrent = 0;
 		TimeSeries.upLift = [0,0];
+		physics.models{8}.updateSurfaceElevation(physics);
+		TimeSeries.SurfaceCoords(:,1) = physics.models{8}.surface_X;
+		TimeSeries.SurfaceCoords(:,2) = physics.models{8}.surface_Y;
+		TimeSeries.SurfaceDisp(1,:,1) = physics.models{8}.surface_dX;
+		TimeSeries.SurfaceDisp(1,:,2) = physics.models{8}.surface_dY;
     	startstep = 1;
 	else
     	filename = savefolder+string(restart_num);
-    	load(filename, "mesh","physics","solver","dt","n_max", "TimeSeries");
+    	load(filename, "mesh","physics","solver","t_max", "TimeSeries");
     	startstep = restart_num+1;
 	end
 	
 	fprintf('Starting timesteps\n')
 	
+	n_max = 1e6;
 	for tstep = startstep:n_max
-    	disp("Step: "+string(tstep));
-        dt = physics.dt;
+    	disp("Step: "+string(tstep)+", Time: "+string(physics.time));
+
+		if (tstep<10)
+			physics.dt = 1;
+		elseif (physics.time<0)
+			physics.dt = 120;
+		else
+			physics.dt = 2;
+		end
 
     	solver.Solve();
     	
+		physics.models{8}.updateSurfaceElevation(physics);
     	TimeSeries.tvec(end+1) = physics.time;
     	TimeSeries.Lfrac(end+1) = mesh.Area(9);
 		TimeSeries.Qvec(end+1,:) = physics.models{4}.QMeltTot;
@@ -158,17 +179,16 @@
 		TimeSeries.qCurrent(end+1) = physics.models{8}.qCurrent(end);
 		TimeSeries.upLift(end+1,1) = physics.models{8}.dxCurrent(end);
 		TimeSeries.upLift(end,2) = physics.models{8}.dyCurrent(end);
-
-    	disp("time: "+physics.time);
+		TimeSeries.SurfaceDisp(end+1,:,1) = physics.models{8}.surface_dX;
+		TimeSeries.SurfaceDisp(end,:,2) = physics.models{8}.surface_dY;
 	
-    	%close all
+		if (true)
+			plotres(physics, TimeSeries);
+		end
+
 		if mod(tstep, 10) == 0
-			if (false)
-				plotres(physics, TimeSeries);
-			end
-        	
         	filename = savefolder+string(tstep);
-        	save(filename, "mesh","physics","solver","dt","n_max","TimeSeries");
+        	save(filename, "mesh","physics","solver","t_max","TimeSeries");
 		end
 	
 		frozen = physics.models{4}.checkFrozen(physics);
@@ -176,13 +196,16 @@
 			fprintf("Fracture frozen, exiting")
 			break
 		end
+		if (physics.time>t_max)
+			break
+		end
 	end
 	
-	if (false)
+	if (true)
 		plotres(physics, TimeSeries);
 	end
 	filename = savefolder+"End";
-	save(filename, "mesh","physics","solver","dt","n_max","TimeSeries");
+	save(filename, "mesh","physics","solver","t_max","TimeSeries");
 	
 	toc(tmr)
 %end

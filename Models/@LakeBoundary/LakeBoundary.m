@@ -18,8 +18,15 @@ classdef LakeBoundary < BaseModel
 		qCurrent
 		dxCurrent
 		dyCurrent
-        hMeltHist;
+        hMeltHist
+
 		ReferenceNode
+
+		SurfaceGroup
+		surface_dX
+		surface_dY
+		surface_X
+		surface_Y
     end
     
     methods
@@ -30,6 +37,7 @@ classdef LakeBoundary < BaseModel
             obj.mesh = mesh;
             obj.myGroup = inputs.Egroup;
             obj.myGroupIndex = obj.mesh.getGroupIndex(obj.myGroup);
+			obj.SurfaceGroup = obj.mesh.getGroupIndex(inputs.Surface);
             obj.dofSpace = physics.dofSpace;
             
             %% create relevant dofs
@@ -68,7 +76,34 @@ classdef LakeBoundary < BaseModel
 
             tElapsed = toc(t);
             fprintf("        (Assemble time:"+string(tElapsed)+")\n");
-        end
+		end
+
+		function updateSurfaceElevation(obj, physics)
+			obj.surface_dX = [];
+			obj.surface_dY = [];
+			obj.surface_X  = [];
+			obj.surface_Y  = [];
+
+			for n_el=1:size(obj.mesh.Elementgroups{obj.SurfaceGroup}.Elems, 1)
+                Elem_Nodes = obj.mesh.getNodes(obj.SurfaceGroup, n_el);
+                [N, ~, w] = obj.mesh.getVals(obj.SurfaceGroup, n_el);
+                xy = obj.mesh.getIPCoords(obj.SurfaceGroup, n_el);
+	
+                dofsX = obj.dofSpace.getDofIndices(obj.dispDofIndices(1), Elem_Nodes);
+                dofsY = obj.dofSpace.getDofIndices(obj.dispDofIndices(2), Elem_Nodes);
+                X = physics.StateVec(dofsX);
+                Y = physics.StateVec(dofsY);
+				for ip=1:length(w)
+					obj.surface_X = [obj.surface_X xy(1,ip)];
+					obj.surface_Y = [obj.surface_Y xy(2,ip)];
+
+					obj.surface_dX = [obj.surface_dX N(ip,:)*X];
+					obj.surface_dY = [obj.surface_dY N(ip,:)*Y];
+				end
+
+			end
+
+		end
        
         function Commit(obj, physics, commit_type)
             if (commit_type == "Timedep")

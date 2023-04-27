@@ -78,7 +78,7 @@ classdef FractureCZM < BaseModel
             Irr = false;
             
 			[fc, ~, ~] = obj.get_fc(physics);
-			if (fc>=0)
+			if (fc>=0 && physics.time>=0)
 				obj.mesh.Propagate_Disc_New(physics);
 				Irr = true;
 			end

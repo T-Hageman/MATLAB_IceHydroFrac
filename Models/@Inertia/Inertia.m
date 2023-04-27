@@ -64,7 +64,7 @@ classdef Inertia < BaseModel
 
                     dofsX = obj.dofSpace.getDofIndices(obj.dofTypeIndices(1), Elem_Nodes);
                     dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), Elem_Nodes);
-                    dofsXY = [dofsX; dofsY];
+                    %dofsXY = [dofsX; dofsY];
 
                     %X = physics.StateVec(dofsX);
                     %Y = physics.StateVec(dofsY);
