@@ -28,11 +28,6 @@ classdef Mesh < handle
         function obj = Mesh(inProps)
             %MESH Construct an instance of this class
             %   Detailed explanation goes here
-            if (inProps.type == "T-Frac")
-                [obj.Nodes, obj.Elementgroups, obj.Nodegroups, obj.Area, rectangular] = obj.TFrac_Generator(inProps);
-                
-                obj.Tjunction = [];
-			end
 			if (inProps.type == "File")
 				[obj.Nodes, obj.Elementgroups, obj.Nodegroups, obj.Area, rectangular] = obj.MeshFromFile(inProps);
                 

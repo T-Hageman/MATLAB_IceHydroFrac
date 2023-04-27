@@ -39,7 +39,6 @@ function Solve(obj)
                 dy = gmres(B,d,[],1e-6,200,L,U);
             end
             
-
             dx = C*dy;
         else
             dx = -obj.physics.K\obj.physics.fint;

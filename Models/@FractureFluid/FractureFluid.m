@@ -118,13 +118,11 @@ classdef FractureFluid < BaseModel
                 
                 dofsX = obj.dofSpace.getDofIndices(obj.dofTypeIndices(1), Elem_Nodes);
                 dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), Elem_Nodes);
-                dofsXY = [dofsX; dofsY];
 
                 X = Svec(dofsX);
                 Y = Svec(dofsY);
                 XY = [X;Y];
 
-                xy = obj.mesh.getIPCoords(obj.myGroupIndex, n_el);
 				for ip=1:ipc
                     Nd = obj.getNd(N(ip,:));
                     ujump = max(0,nvec(ip,:)*Nd*XY);

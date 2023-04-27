@@ -6,7 +6,7 @@
 	hasVisc=1;
 	HIce = 980;
 	dx_elem = 2.5;
-	T_Ice = -(irun-1); %x11, 0--10
+	T_Ice = "profile"; 
 	meshName = "mesh_Das_25.mphtxt";
 
 	flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"

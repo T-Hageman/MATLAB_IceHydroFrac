@@ -17,7 +17,6 @@ classdef FractureCZM < BaseModel
         
         hist %history parameter (element, ip)
         histOld
-        
     end
     
     methods
@@ -49,14 +48,7 @@ classdef FractureCZM < BaseModel
             end
         end
         
-		function [fc, f_t, K_tu, K_tt, dofsXY] = get_fc(obj, physics)
-			if physics.ArcTime.Enable
-            	TDof = physics.dofSpace.getDofIndices(physics.tType, 1);
-            	time    = physics.StateVec(TDof);
-            	timeOld = physics.StateVec_Old(TDof);
-            	dt = time - timeOld;
-			end
-
+		function [fc, f_t, dofsXY] = get_fc(obj, physics)
 			[direction, elem, ips] = obj.mesh.getNextFracture();
 			stresses = physics.Request_Info("stresses",elem,"Interior");
 			dstresses = physics.Request_Info("dstressesdxy",elem,"Interior");
@@ -77,51 +69,16 @@ classdef FractureCZM < BaseModel
 			end
 
 			f_t = 0;
-			K_tu = zeros(1, length(dofsXY));
-			K_tt = 0;
 
 			fc = sel'*stress-ts;
-			if physics.ArcTime.Enable
-            	if (dt < physics.ArcTime.TMin && fc>0)
-                	f_t = f_t + physics.ArcTime.KDummy * (time - timeOld - physics.ArcTime.TMin+1e-9);
-                	K_tt = K_tt + physics.ArcTime.KDummy;
-				elseif (dt < physics.ArcTime.TMin)
-                	f_t = f_t + physics.ArcTime.KDummy * (time - timeOld - physics.ArcTime.TMin-1e-9);
-                	K_tt = K_tt + physics.ArcTime.KDummy;
-            	elseif (dt >= physics.ArcTime.TMax && fc<0)
-                	f_t = f_t + physics.ArcTime.KDummy * (time - timeOld - physics.ArcTime.TMax-1e-9);
-                	K_tt = K_tt + physics.ArcTime.KDummy;
-				elseif (dt >= physics.ArcTime.TMax && fc>0)
-                	f_t = f_t + physics.ArcTime.KDummy * (time - timeOld - physics.ArcTime.TMax+1e-3);
-                	K_tt = K_tt + physics.ArcTime.KDummy;
-				else
-                	f_t = f_t + sel'*stress-ts;
-                	K_tu = K_tu + sel'*dstress;
-                	K_tt = K_tt + physics.ArcTime.KStab;
-	% 				if (fc<0)
-	% 					f_t = f_t + physics.ArcTime.KStab * fc/1e6*((time-timeOld) - 1.1*(time-timeOld));
-	% 					K_tt = K_tt + physics.ArcTime.KStab * fc/1e6*-0.1;
-	% 				else
-	% 					f_t = f_t + physics.ArcTime.KStab * fc/1e6*((time-timeOld) - 0.9*(time-timeOld));
-	% 					K_tt = K_tt + physics.ArcTime.KStab * fc/1e6*0.1;
-	% 				end
-				end
-			else
-				f_t = f_t + sel'*stress-ts;
-			end
-
+			f_t = f_t + sel'*stress-ts;
 		end
 
         function Irr = Irreversibles(obj, physics)
             Irr = false;
             
-            sf = 0;
-            if (physics.ArcTime.Enable)
-                sf = physics.ArcTime.Tol;
-            end
-
-			[fc, ~, ~, ~, ~] = obj.get_fc(physics);
-			if (fc+sf>=0)
+			[fc, ~, ~] = obj.get_fc(physics);
+			if (fc>=0)
 				obj.mesh.Propagate_Disc_New(physics);
 				Irr = true;
 			end
@@ -134,7 +91,6 @@ classdef FractureCZM < BaseModel
                 obj.histOld(end+1,:) = 1e-4;
                 obj.hist(end+1,:) = 1e-4;
             end
-            
             
             fprintf("        FractureCZM get Matrix:")
             t = tic;
@@ -173,16 +129,14 @@ classdef FractureCZM < BaseModel
                     
                     h = nvec(ip,:)*Nd*XY;
                     
-                    %if (h < 0 )
-                        %Lumped integration of dummy stiffness
-                        C_Lumped = C_Lumped + N(ip,:)'*w(ip);
-                    %end
+                    %Lumped integration of dummy stiffness
+                    C_Lumped = C_Lumped + N(ip,:)'*w(ip);
 
                     %CZM STUFF
                     hstOld = obj.histOld(n_el, ip);
                     tau = zeros(2,1);
                     dtaudh = zeros(2,2);
-                     if (xy(2,end-1)>obj.Hmatswitch+1e-2 || true)  %vertical prop
+                     if (true)  %use czm
                          if (h>=hstOld)
                              hloc = h;
                              tau(1) = obj.tensile * exp(-obj.tensile*h/obj.energy);
@@ -193,6 +147,7 @@ classdef FractureCZM < BaseModel
                              dtaudh(1,1) = obj.tensile * exp(-obj.tensile*hstOld/obj.energy)/hstOld;
 						else
 							hloc = hstOld;
+							%tractions via no-pen condition
 						end
                      else
                          hloc = h;
@@ -216,10 +171,7 @@ classdef FractureCZM < BaseModel
                     	f_el = f_el + C_Lumped(cp)*obj.dummy*(Nd'*(n_est'*n_est)*Nd)*XY;
                     	K_el = K_el + C_Lumped(cp)*obj.dummy*(Nd'*(n_est'*n_est)*Nd);
 					end
-                end
-                
-%                 physics.fint(dofsXY) = physics.fint(dofsXY) + f_el;
-%                 physics.K(dofsXY, dofsXY) = physics.K(dofsXY, dofsXY) + K_el;
+				end
 
                 fvec = [fvec; f_el];
                 dofvec = [dofvec; dofsXY];
@@ -228,31 +180,12 @@ classdef FractureCZM < BaseModel
                 dofmatX = [dofmatX; dofmatxloc(:)];
                 dofmatY = [dofmatY; dofmatyloc(:)];
                 kmat = [kmat; K_el(:)];
-
             end 
             
             obj.hist = newHist;
 
             physics.fint = physics.fint + sparse(dofvec, 0*dofvec+1, fvec, length(physics.fint), 1);
-            physics.K = physics.K + sparse(dofmatX, dofmatY, kmat, length(physics.fint),length(physics.fint));
-
-
-            %% arctime stuff
-			if (physics.ArcTime.Enable)
-                tscale = 0.00001;
-                TDof = physics.dofSpace.getDofIndices(physics.tType, 1);
-                
-				[fc, f_t, K_tu, K_tt, dofsXY] = obj.get_fc(physics);
-
-                physics.fint(TDof) = physics.fint(TDof) + tscale*f_t;
-                physics.K(TDof, dofsXY) = physics.K(TDof, dofsXY) + tscale*K_tu;
-                physics.K(TDof, TDof) = physics.K(TDof, TDof) + tscale*K_tt;
-
-				fprintf("Fracture criterium: " + string(fc) + "\n" );
-			end
-
-
-			
+            physics.K = physics.K + sparse(dofmatX, dofmatY, kmat, length(physics.fint),length(physics.fint));		
 
             tElapsed = toc(t);
             fprintf("            (Assemble time:"+string(tElapsed)+")\n");
