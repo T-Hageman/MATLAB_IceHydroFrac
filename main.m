@@ -43,7 +43,7 @@
 		restart = false;
 		restart_num = 0;
 	end
-	%restart = false;
+	restart = false;
 	if restart == false
     	% mesh properties
 		mesh_in.type = "File";
@@ -74,7 +74,7 @@
     	physics_in{3}.Egroup = "Fracture";
     	physics_in{3}.tensile = 0.3e6;
     	physics_in{3}.energy = (5.0e-3)*physics_in{3}.tensile;
-    	physics_in{3}.dummy = 0; %1e10
+    	physics_in{3}.dummy = 1e10;
     	physics_in{3}.Hmatswitch = 0;
 	
     	physics_in{4}.type = "FractureFluid";
@@ -99,12 +99,12 @@
     	physics_in{6}.type = "Constrainer";
     	physics_in{6}.Egroup = "Left";
     	physics_in{6}.dofs = {"dx"};
-    	physics_in{6}.conVal = 0*[-1e-5]*4000*0.5;
+    	physics_in{6}.conVal = 0;
 	
     	physics_in{7}.type = "Constrainer";
     	physics_in{7}.Egroup = "Right";
     	physics_in{7}.dofs = {"dx"};
-    	physics_in{7}.conVal = 0*[1e-5]*4000*0.5;
+    	physics_in{7}.conVal = 0;
 	
     	physics_in{8}.type = "LakeBoundary";
     	physics_in{8}.Egroup = "Fracture";
@@ -163,8 +163,10 @@
 
 		if (tstep<10)
 			physics.dt = 1;
-		elseif (physics.time<0)
-			physics.dt = 120;
+		elseif (physics.time<-600)
+			physics.dt = 600;
+		elseif (pysics.time<-0.001)
+			physics.dt = -pysics.time;
 		else
 			physics.dt = 2;
 		end

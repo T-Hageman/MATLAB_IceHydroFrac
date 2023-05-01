@@ -270,15 +270,10 @@ classdef FractureFluid < BaseModel
                     K_pp = K_pp + w(ip)*G(ip,:,1)'*derivs.qx_dpdx*G(ip,:,1);
 
                     %% compressibility
-					hn = h;
-					%if (h<1e-3)
-					%	hn=1e-3;
-					%end
-
                     f_p  = f_p - w(ip) * h/obj.Kf * N(ip,:)'*N(ip,:)*(PD-PDOld)/dt;
 
                     K_pu = K_pu - w(ip)*N(ip,:)'*derivs.h_du*nvec(ip,:)*Nd * 1/obj.Kf * (N(ip,:)*(PD-PDOld))/dt ;
-                    K_pp = K_pp - w(ip)*N(ip,:)'*(1/obj.Kf*derivs.h_dpdx*G(ip,:,1)*(N(ip,:)*(PD-PDOld)/dt) + hn/obj.Kf * N(ip,:)/dt);			
+                    K_pp = K_pp - w(ip)*N(ip,:)'*(1/obj.Kf*derivs.h_dpdx*G(ip,:,1)*(N(ip,:)*(PD-PDOld)/dt) + h/obj.Kf * N(ip,:)/dt);			
                 end
                 
                 for cp=1:length(C_Lumped)
@@ -290,7 +285,7 @@ classdef FractureFluid < BaseModel
                     f_u  = f_u  - C_Lumped(cp)*(Nd'*n_est'*NL)*PD;
                     K_up = K_up - C_Lumped(cp)*(Nd'*n_est'*NL);
 
-					K_pp(cp,cp) = K_pp(cp,cp) - C_Lumped(cp)*1e-5; %some extra damping/stabilisation
+					K_pp(cp,cp) = K_pp(cp,cp) - C_Lumped(cp)*1e-9; %some extra damping/stabilisation
                 end
 
 				%forces
@@ -396,16 +391,12 @@ classdef FractureFluid < BaseModel
 
 			derivs.qx_dpdx = drvs(1,1);
 			derivs.qx_du = drvs(1,2);
-			derivs.qx_dt = drvs(1,3);
 
 			derivs.hmelt_dpdx = drvs(2,1);
 			derivs.hmelt_du = drvs(2,2);
-			derivs.hmelt_dt = drvs(2,3);
 
 			derivs.h_dpdx = drvs(3,1);
 			derivs.h_du = drvs(3,2);
-			derivs.h_dt = drvs(3,3);	
-
 		end
         
 		function [f, C, D, Qres] = getFracK(obj, sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp)
@@ -415,17 +406,7 @@ classdef FractureFluid < BaseModel
 
 			smallH = 1e-6;
 
-			%if (u+hMelt_hist<0)
-			%	u=-hMelt_hist;
-			%end
-
-			hFlow = sol(3);
-			dh=1.0;
-			% if (hFlow < smallH)
-			% 	hFlow = smallH;
-			% 	%dh = 0.0;
-			% end
-
+			hFlow = max(smallH,sol(3));
 			[qxFlow, dqx_dh, dqx_dpdx] = obj.getFlow(dp_dx, hFlow);
 
 			ThermCap = obj.rho_ice*obj.melt_heat; 
@@ -452,7 +433,7 @@ classdef FractureFluid < BaseModel
 			% qx, hmelt, h
 			C(1,1) = 1; 
 			C(1,2) = 0;
-			C(1,3) = -dqx_dh*dh;
+			C(1,3) = -dqx_dh;
 			C(2,1) = -dQmelt_ds;
 			C(2,2) = ThermCap/dt;
 			C(2,3) = 0;
@@ -465,16 +446,13 @@ classdef FractureFluid < BaseModel
 				C(3,3) = C(3,3) + 2*1e5*(sol(3)-smallH);
 			end
 
-			% dpdx, ujump, t
-			D(1,1) = -dqx_dpdx;%*0.5;
+			% dpdx, ujump
+			D(1,1) = -dqx_dpdx;
 			D(1,2) = 0;
-			D(1,3) = 0;
 			D(2,1) = -dQmelt_dp;
 			D(2,2) = 0;
-			D(2,3) = -(sol(2)-hMelt_hist)*ThermCap/dt^2;
 			D(3,1) = 0;
-			D(3,2) = -1;%*0.5;
-			D(3,3) = 0;
+			D(3,2) = -1;
 		end
 
 		function [qxFlow, dqx_dh, dqx_dpdx] = getFlow(obj, dp_dx, h)

@@ -83,7 +83,7 @@ function Solve(obj)
         if (it>curr_max_it || ((En_err_n<obj.Conv || En_err<obj.tiny)))
             obj.physics.Commit("Pathdep");
             irr = obj.physics.Irreversibles();
-            if (irr == false || obj.physics.ArcTime.Enable == true)
+            if (irr == false)
                 stop = true;
 			else
 				obj.physics.Commit("Irrevirsibles");
