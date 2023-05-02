@@ -10,13 +10,14 @@ classdef FractureCZM < BaseModel
         dofSpace
         dofTypeIndices
         
-        tensile
         energy
         dummy
         Hmatswitch
         
         hist %history parameter (element, ip)
         histOld
+		T_ice
+		ft
     end
     
     methods
@@ -33,10 +34,11 @@ classdef FractureCZM < BaseModel
             obj.dofTypeIndices = obj.dofSpace.addDofType({"dx","dy"});
             obj.dofSpace.addDofs(obj.dofTypeIndices, obj.mesh.GetAllNodesForGroup(obj.myGroupIndex));
             
-            obj.tensile = inputs.tensile;
             obj.energy = inputs.energy;
             obj.dummy = inputs.dummy;
             obj.Hmatswitch = inputs.Hmatswitch;
+			obj.T_ice = inputs.T_ice;
+			obj.ft = @(T) 2.0-0.0068*(T+273.15);
             
             obj.hist = 1e10+zeros(size(obj.mesh.Elementgroups{obj.myGroupIndex}.Elems, 1), obj.mesh.Elementgroups{obj.myGroupIndex}.ShapeFunc.ipcount);
             obj.histOld = obj.hist;
@@ -57,21 +59,22 @@ classdef FractureCZM < BaseModel
 	        dofsX = obj.dofSpace.getDofIndices(obj.dofTypeIndices(1), nds);
             dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), nds);
             dofsXY = [dofsX; dofsY];
+
+			y = mean(obj.mesh.Nodes(nds,2));
         
 			stress = squeeze(stresses(1, ips, :));
-            dstress = squeeze(dstresses(1, ips, :, :));
+
+			Ice_temp = obj.T_ice(y);
+			ts = obj.ft(Ice_temp);
+
 			if (direction == "Horizontal") %compare yy component
 				sel = [0;1;0;0];
-				ts = obj.tensile;
 			else %compare xx component
 				sel = [1;0;0;0];
-				ts = obj.tensile;
 			end
 
-			f_t = 0;
-
 			fc = sel'*stress-ts;
-			f_t = f_t + sel'*stress-ts;
+			f_t = sel'*stress-ts;
 		end
 
         function Irr = Irreversibles(obj, physics)
@@ -128,6 +131,9 @@ classdef FractureCZM < BaseModel
                     Nd = obj.getNd(N(ip,:));
                     
                     h = nvec(ip,:)*Nd*XY;
+
+					Ice_temp = obj.T_ice(xy(2,ip));
+					f_t = obj.ft(Ice_temp);
                     
                     %Lumped integration of dummy stiffness
                     C_Lumped = C_Lumped + N(ip,:)'*w(ip);
@@ -139,12 +145,12 @@ classdef FractureCZM < BaseModel
                      if (true)  %use czm
                          if (h>=hstOld)
                              hloc = h;
-                             tau(1) = obj.tensile * exp(-obj.tensile*h/obj.energy);
-                             dtaudh(1,1) = -obj.tensile.^2/obj.energy * exp(-obj.tensile*h/obj.energy);
+                             tau(1) = f_t * exp(-f_t*h/obj.energy);
+                             dtaudh(1,1) = -f_t.^2/obj.energy * exp(-f_t*h/obj.energy);
 						 elseif (h>0)
                              hloc = hstOld;
-                             tau(1) = obj.tensile * exp(-obj.tensile*hstOld/obj.energy)*h/hstOld;
-                             dtaudh(1,1) = obj.tensile * exp(-obj.tensile*hstOld/obj.energy)/hstOld;
+                             tau(1) = f_t * exp(-f_t*hstOld/obj.energy)*h/hstOld;
+                             dtaudh(1,1) = f_t * exp(-f_t*hstOld/obj.energy)/hstOld;
 						else
 							hloc = hstOld;
 							%tractions via no-pen condition

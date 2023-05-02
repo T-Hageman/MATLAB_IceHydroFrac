@@ -239,7 +239,7 @@ classdef FractureFluid < BaseModel
                     
 					%% displacement opening fluid flux
                     f_p  = f_p  - w(ip)*N(ip,:)'*(ujump-ujumpOld)/dt;
-                    K_pu = K_pu - w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt;
+                    K_pu = K_pu - 0.5*w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt;
 					
 
 					%% Return mapping scheme

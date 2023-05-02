@@ -1,6 +1,6 @@
-%close all
-%clear all
-%clc
+close all
+clear all
+clc
 
 H_Glacier = 980;
 
@@ -37,19 +37,25 @@ YPlot = linspace(0,H_Glacier,1000);
 TPlot = T_Ice(YPlot);
 for i=1:length(TPlot)
 	A_Plot(i) = T_to_A(TPlot(i)+273.15, 910*9.81*(980-YPlot(i)));
+	ft_Plot(i) = 2.0-0.0068*(TPlot(i)+273.15);   %https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2012JE004101
 end
 
 figure
-subplot(1,2,1)
+subplot(1,3,1)
 plot(TPlot, YPlot,'k-')
 hold on
 plot(TProfile.T(2:end), TProfile.X(2:end),'r*')
 xlabel('T [degC]')
 ylabel('y [m]')
 
-subplot(1,2,2)
+subplot(1,3,2)
 plot(A_Plot, YPlot,'k-')
 xlabel('A [Pa^{-3} s^{-1}]')
+ylabel('y [m]')
+
+subplot(1,3,3)
+plot(ft_Plot, YPlot,'k-')
+xlabel('f_t [MPa]')
 ylabel('y [m]')
 
 save("TProfile.mat","T_Ice")

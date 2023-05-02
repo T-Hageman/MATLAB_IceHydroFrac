@@ -43,7 +43,7 @@
 		restart = false;
 		restart_num = 0;
 	end
-	restart = false;
+	%restart = false;
 	if restart == false
     	% mesh properties
 		mesh_in.type = "File";
@@ -72,10 +72,10 @@
 	
     	physics_in{3}.type = "FractureCZM";
     	physics_in{3}.Egroup = "Fracture";
-    	physics_in{3}.tensile = 0.3e6;
-    	physics_in{3}.energy = (5.0e-3)*physics_in{3}.tensile;
-    	physics_in{3}.dummy = 1e10;
+    	physics_in{3}.energy = 10;%(0.5e-3)*physics_in{3}.tensile;
+    	physics_in{3}.dummy = 0*1e10;
     	physics_in{3}.Hmatswitch = 0;
+		physics_in{3}.T_ice = T_Ice;
 	
     	physics_in{4}.type = "FractureFluid";
     	physics_in{4}.Egroup = "Fracture";
@@ -153,6 +153,8 @@
     	filename = savefolder+string(restart_num);
     	load(filename, "mesh","physics","solver","t_max", "TimeSeries");
     	startstep = restart_num+1;
+		physics.models{3}.dummy = 0;
+		physics.models{3}.energy = 10;
 	end
 	
 	fprintf('Starting timesteps\n')
@@ -165,8 +167,8 @@
 			physics.dt = 1;
 		elseif (physics.time<-600)
 			physics.dt = 600;
-		elseif (pysics.time<-0.001)
-			physics.dt = -pysics.time;
+		elseif (physics.time<-0.001)
+			physics.dt = -physics.time;
 		else
 			physics.dt = 2;
 		end
@@ -214,6 +216,11 @@
 
 
 	function plotres(physics, TimeSeries)
+		t0 = find(TimeSeries.tvec==0);
+		if (isempty(t0))
+			t0=1;
+		end
+
 		LFrac = 3.2e3;
 		ALake = 5.6e6; 
 		m3_msec_to_m_hour = LFrac/ALake*3600;
@@ -232,32 +239,32 @@
 		figure(72)
 		clf
 		subplot(3,1,1)
-			plot(TimeSeries.tvec, TimeSeries.Qvec(:,1));
+			plot(TimeSeries.tvec(t0:end), TimeSeries.Qvec(t0:end,1));
 			hold on
-			plot(TimeSeries.tvec, TimeSeries.Qvec(:,2));
-			plot(TimeSeries.tvec, TimeSeries.Qvec(:,3));
+			plot(TimeSeries.tvec(t0:end), TimeSeries.Qvec(t0:end,2));
+			plot(TimeSeries.tvec(t0:end), TimeSeries.Qvec(t0:end,3));
 			legend('Ice desorbtion', 'Flow produced', 'Melting process');
 			xlabel('t [sec]')
 			ylabel('Q_{thermal} [J]')
 	
 		subplot(3,1,2)
     		yyaxis left
-    		plot(TimeSeries.tvec, TimeSeries.Qinflow*m3_to_mWaterHeigt);
+    		plot(TimeSeries.tvec(t0:end), TimeSeries.Qinflow(t0:end)*m3_to_mWaterHeigt);
 			ylabel('Q_{flow} [m_{lakeHeight}]')
     		yyaxis right
-    		plot(TimeSeries.tvec, TimeSeries.Lfrac);
+    		plot(TimeSeries.tvec(t0:end), TimeSeries.Lfrac(t0:end));
 			xlabel('t [sec]')
 			ylabel('L_{frac} [m]')
 
 		subplot(3,1,3)
 			yyaxis left
-			plot(TimeSeries.tvec, TimeSeries.qCurrent*m3_msec_to_m_hour);
+			plot(TimeSeries.tvec(t0:end), TimeSeries.qCurrent(t0:end)*m3_msec_to_m_hour);
 			xlabel('t [sec]')
 			ylabel('q [m_{lakeHeight}/hour]')
 			yyaxis right
-			plot(TimeSeries.tvec, TimeSeries.upLift(:,1));
+			plot(TimeSeries.tvec(t0:end), TimeSeries.upLift(t0:end,1));
 			hold on
-			plot(TimeSeries.tvec, TimeSeries.upLift(:,2));
+			plot(TimeSeries.tvec(t0:end), TimeSeries.upLift(t0:end,2));
 			ylabel('dx dy  [m]')
 
 		drawnow();
