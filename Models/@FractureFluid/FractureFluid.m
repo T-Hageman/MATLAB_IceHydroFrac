@@ -238,8 +238,8 @@ classdef FractureFluid < BaseModel
 					C_Lumped = C_Lumped + N(ip,:)'*w(ip);
                     
 					%% displacement opening fluid flux
-                    f_p  = f_p  - w(ip)*N(ip,:)'*(ujump-ujumpOld)/dt;
-                    K_pu = K_pu - 0.5*w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt;
+                    %f_p  = f_p  - w(ip)*N(ip,:)'*(ujump-ujumpOld)/dt;
+                    %K_pu = K_pu - 0.5*w(ip)*N(ip,:)'*nvec(ip,:)*Nd/dt;
 					
 
 					%% Return mapping scheme
@@ -284,6 +284,9 @@ classdef FractureFluid < BaseModel
                     n_est = nvec(1,:);
                     f_u  = f_u  - C_Lumped(cp)*(Nd'*n_est'*NL)*PD;
                     K_up = K_up - C_Lumped(cp)*(Nd'*n_est'*NL);
+
+					f_p  = f_p  - C_Lumped(cp)*NL'*n_est*Nd*(XY-XYOld)/dt;
+                    K_pu = K_pu - C_Lumped(cp)*NL'*n_est*Nd/dt;
 
 					K_pp(cp,cp) = K_pp(cp,cp) - C_Lumped(cp)*1e-9; %some extra damping/stabilisation
                 end

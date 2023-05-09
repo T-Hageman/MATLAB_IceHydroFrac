@@ -8,8 +8,8 @@ addpath(genpath('./Shapes'))
 global maxplotStep defscale saveIndividualP saveIndividualS;
 maxplotStep = 3600;
 defscale = 1000;
-saveIndividualP = true;
-saveIndividualS = true;
+saveIndividualP = false;
+saveIndividualS = false;
 
 for set=[4]
 	switch set
@@ -20,7 +20,7 @@ for set=[4]
 			cstyles = { "k", "r", "c", "b", "m", ....
 						     "r-.", "c-.", "b-.", "m-.", ....
 						     "r:", "c:", "b:", "m:"};
-			for Ti=1:11
+			for Ti=1:8
 				T = 1-Ti;
 				ind = ind+1;
 				fnames{ind} = "Results_Visc/"+string(T);
@@ -30,6 +30,9 @@ for set=[4]
 			end
 		case 2 %Lin-Elastic
 			SetName = "Das_LinEl"
+			cstyles = { "k", "r", "c", "b", "m", ....
+			     "r-.", "c-.", "b-.", "m-.", ....
+			     "r:", "c:", "b:", "m:"};
 
 			ind = 0;
 
@@ -63,7 +66,7 @@ for set=[4]
 						     "r-.", "c-.", "b-.", "m-.", ....
 						     "r:", "c:", "b:", "m:"};
 
-			fnames{1} = "Results_Visc/0";
+			fnames{1} = "Results/Visc_FrictionFactor";
 			snames{1} = "Visc";
 			lnames{1} = "Visco-Elastic";
 			lstyles{1} = cstyles{1};
@@ -75,6 +78,64 @@ end
 
 
 function ProcessingForSet(fnames, snames, lnames, lstyles, setName)
+	T0 = 20;
+
+	Das_QData = [0.028143727632721438, -0.1951255992949945
+				0.332136882451348, -0.2014419462029151
+				0.671285708235394, -0.2267073338345984
+				0.998026650149292, -0.27723810909796454
+				1.3268355727082146, -0.6246371890336087
+				1.6659843984922604, -1.951070039696977
+				1.8272868888041849, -3.9217702749682672]; 
+	Das_QData(:,1) = Das_QData(:,1)*60-T0; Das_QData(:,2) = Das_QData(:,2)-Das_QData(1,2);
+	for i=1:length(Das_QData)-1
+		Das_dQData(2*i-1,1)=Das_QData(i,1);
+		Das_dQData(2*i  ,1)=Das_QData(i+1,1);
+		Das_dQData(2*i-1,2)=(Das_QData(i,2)-Das_QData(i+1,2))/(Das_QData(i+1,1)-Das_QData(i,1))*60;
+		Das_dQData(2*i  ,2)=(Das_QData(i,2)-Das_QData(i+1,2))/(Das_QData(i+1,1)-Das_QData(i,1))*60;
+	end
+
+	Das_HData = [	0.0010022909507449995, -0.19111111111111123
+					0.17998281786941628, -0.20351190476190517
+					0.33748568155784686, -0.19359126984127029
+					0.5093069873997715, -0.17623015873015913
+					0.7026059564719362, -0.1539087301587303
+					0.881586483390608, -0.12910714285714286
+					1.0713058419243993, -0.10182539682539682
+					1.2502863688430703, -0.07454365079365122
+					1.4364261168384886, -0.024940476190476346
+					1.5796105383734256, 0.044503968253968296
+					1.6869988545246284, 0.1313095238095232
+					1.7621706758304705, 0.20819444444444413
+					1.8266036655211915, 0.2801190476190474
+					1.8981958762886606, 0.36692460317460296
+					1.9697880870561288, 0.4834920634920632
+					2.0413802978235975, 0.5802182539682539
+					2.098654066437572, 0.6769444444444443
+					2.173825887743414, 0.7786309523809523
+					2.248997709049256, 0.8703968253968253
+					2.3993413516609396, 0.9497619047619046
+					2.5747422680412377, 0.974563492063492
+					2.721506300114548, 0.9596825396825397
+					2.864690721649486, 0.9249603174603174
+					2.9971363115693017, 0.8852777777777776
+					3.1295819014891184, 0.8480753968253967
+					3.233390607101948, 0.8034325396825395
+					3.3228808705612836, 0.7563095238095237
+					3.4517468499427273, 0.7042261904761904
+					3.5698739977090503, 0.6719841269841269
+					3.698739977090493, 0.642222222222222
+					3.856242840778924, 0.6000595238095237
+					4.013745704467354, 0.5554166666666664
+					4.146191294387172, 0.5107738095238092
+					4.296534936998857, 0.4611706349206348
+					4.4790950744559, 0.40908730158730133
+					4.640177548682704, 0.38676587301587295
+					4.797680412371134, 0.37684523809523807
+					4.958762886597938, 0.36196428571428574];
+	Das_HData(:,1) = Das_HData(:,1)*60-T0; Das_HData(:,2) = Das_HData(:,2)-Das_HData(1,2);
+
+
 	global maxplotStep defscale saveIndividualP saveIndividualS;
 
 		LFrac = 3.2e3;
@@ -132,12 +193,17 @@ function ProcessingForSet(fnames, snames, lnames, lstyles, setName)
 					plot(TimeSeries.tvec/60, TimeSeries.qCurrent*m3_msec_to_m_hour,'k-.','LineWidth',1,'DisplayName',"$\dot{Q}$");
 					hold on
 
+					plot(Das_QData(:,1),-Das_QData(:,2),'r-','LineWidth',1,'DisplayName',"$Q_{Das}$");
+					plot(Das_dQData(:,1), Das_dQData(:,2),'r-.','LineWidth',1,'DisplayName',"$\dot{Q}_{Das}$")
+
 					yyaxis right
 					hold on
 				figure(f7)
 					plot(TimeSeries.tvec/60, -2*TimeSeries.upLift(:,1),'k-','LineWidth',1,'DisplayName',"$h$");
 					hold on
 					plot(TimeSeries.tvec/60, TimeSeries.upLift(:,2),'k-.','LineWidth',1,'DisplayName',"$u_y$");
+					plot(Das_HData(:,1), Das_HData(:,2),'r-.','LineWidth',1,'DisplayName',"$u_{y,das}$");
+					
 			else
 				figure(f5)
 					yyaxis left
@@ -254,7 +320,7 @@ function ProcessingForSet(fnames, snames, lnames, lstyles, setName)
 		ax = gca;
 		ax.YAxis(1).Color = [0 0 0];
 		ax.YAxis(2).Color = [0 0 0];
-		ylims = ax.YLim;
+		ylims = [0 1.5];
 		ylim(ylims);
 		legend('Location','southoutside','Interpreter','latex','NumColumns',3)
 		xlabel('$\mathrm{time}\;[\mathrm{minutes}]$','Interpreter','latex')
