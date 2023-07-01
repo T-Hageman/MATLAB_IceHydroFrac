@@ -20,7 +20,7 @@ classdef LakeBoundary < BaseModel
 		dyCurrent
         hMeltHist
 
-		ReferenceNode
+		refY
 
 		SurfaceGroup
 		surface_dX
@@ -48,13 +48,13 @@ classdef LakeBoundary < BaseModel
             
             obj.p0 = inputs.p0;
             obj.kdummy = inputs.dummy;
-			obj.ReferenceNode = inputs.Reference;
 
 			obj.QTotal = 0.0;
 			obj.qCurrent = 0.0;
 			obj.dxCurrent = 0.0;
 			obj.dyCurrent = 0.0;
 			obj.hMeltHist = 0.0;
+			obj.refY = 0;
         end
         
         function getKf(obj, physics)
@@ -108,10 +108,9 @@ classdef LakeBoundary < BaseModel
         function Commit(obj, physics, commit_type)
             if (commit_type == "Timedep")
                 Elem_Node   = obj.mesh.Elementgroups{obj.myGroupIndex}.Elems(1,1);
-				ref_Node = obj.ReferenceNode;
                 dofsPD = obj.dofSpace.getDofIndices(obj.dofTypeIndices(1), Elem_Node);
-				dofsX = obj.dofSpace.getDofIndices(obj.dispDofIndices(1), [Elem_Node, ref_Node]);
-                dofsY = obj.dofSpace.getDofIndices(obj.dispDofIndices(2), [Elem_Node, ref_Node]);
+				dofsX = obj.dofSpace.getDofIndices(obj.dispDofIndices(1), Elem_Node);
+                dofsY = obj.dofSpace.getDofIndices(obj.dispDofIndices(2), Elem_Node);
 
                 X = physics.StateVec(dofsX);
                 Y = physics.StateVec(dofsY);
@@ -120,11 +119,15 @@ classdef LakeBoundary < BaseModel
                 q = obj.kdummy * (obj.p0-PD);
                 obj.QTotal(end+1) = obj.QTotal(end)+q*physics.dt;
 				obj.qCurrent(end+1) = q;
-				obj.dxCurrent(end+1)= X(1)-X(2);
-				obj.dyCurrent(end+1)= Y(1)-Y(2);
+				obj.dxCurrent(end+1)= X;
+				obj.dyCurrent(end+1)= Y-obj.refY;
 				obj.hMeltHist(end+1) = physics.models{4}.hmelt(1,1);
 
                 fprintf("Total fluid flow:"+string(obj.QTotal(end))+"\n");
+
+				if (physics.time < 0)
+					obj.refY = Y(1);
+				end
             end
         end
         

@@ -2,131 +2,13 @@ function main(irun)
 	addpath(genpath('./Models'))
 	addpath(genpath('./Shapes'))
 
-	hpc = true;
+	hpc = false;
 
+	
 	switch irun
 		case 1
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/Visc_Turbulent_Hist";
-		case 2
-			A0=0;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/NoVisc_Turbulent_Hist";
-		case 3
-			A0=5e-24;
-			flowtype = "CubicLaw";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/Visc_Laminar_Hist";
-		case 4
-			A0=0;
-			flowtype = "CubicLaw";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/NoVisc_Laminar_Hist";
-		case 5
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = 0;
-			savefolder = "./Results/Visc_Turbulent_NoHist";
-		case 6
-			A0=0;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = 0;
-			savefolder = "./Results/NoVisc_Turbulent_NoHist";
-		case 7
-			A0=5e-24;
-			flowtype = "CubicLaw";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = 0;
-			savefolder = "./Results/Visc_Laminar_NoHist";
-		case 8
-			A0=0;
-			flowtype = "CubicLaw";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = 0;
-			savefolder = "./Results/NoVisc_Laminar_NoHist";
-		%% Verifications Gc
-		case 9
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 1;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/1";
-		case 10
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/10";
-		case 11
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 50;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/50";
-		case 12
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 100;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/100";
-		case 13
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 250;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/250";
-		case 14
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 500;
-			t0 = -24*3600;
-			savefolder = "./Results/GcSweep/500";
-		%% Verifications A0
-		case 15
-			A0=1e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/1_24";
-		case 16
-			A0=5e-24;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/5_24";
-		case 17
-			A0=1e-25;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/1_25";
-		case 18
-			A0=5e-25;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/5_25";
-		case 19
-			A0=1e-26;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/1_26";
-		case 20
-			A0=5e-26;
-			flowtype = "FrictionFactor";   %"CubicLaw";"FrictionFactor"
-			Gc = 10;
-			t0 = -24*3600;
-			savefolder = "./Results/A0Sweep/5_26";
+			MeshFile = "Meshes/mesh_-50m.mphtxt";
+			savefolder = "./Results/ref";
 	end
 
 	dx_elem = 2.5;
@@ -135,7 +17,6 @@ function main(irun)
 	else
 		load("TProfile.mat","T_Ice");
 	end
-	meshName = "mesh_Das_25.mphtxt";
 
 	mkdir(savefolder);
 	savefolder = savefolder + "/";
@@ -167,7 +48,7 @@ function main(irun)
 	if restart == false
     	% mesh properties
 		mesh_in.type = "File";
-		mesh_in.FileName = meshName;
+		mesh_in.FileName = MeshFile;
 		mesh_in.nfrac = 30/dx_elem;
 		mesh_in.ipcount1D = 3;
 		mesh_in.zeroWeight = true;
@@ -179,7 +60,7 @@ function main(irun)
     	physics_in{1}.Egroup = "Internal";
     	physics_in{1}.young = [9e9; 20e9]; %[9e9; 20e9];
     	physics_in{1}.poisson = [0.33; 0.25]; %[0.33; 0.25];
-		physics_in{1}.A0 = A0;
+		physics_in{1}.A0 = 5e-24;
 		physics_in{1}.Q = 150e3;
 		physics_in{1}.TRef = 273.15;
 		physics_in{1}.n = 3;
@@ -192,8 +73,8 @@ function main(irun)
 	
     	physics_in{3}.type = "FractureCZM";
     	physics_in{3}.Egroup = "Fracture";
-    	physics_in{3}.energy = Gc;
-    	physics_in{3}.dummy = 0*1e10;
+    	physics_in{3}.energy = 10;
+    	physics_in{3}.dummy = 1e10*0;
     	physics_in{3}.Hmatswitch = 0;
 		physics_in{3}.T_ice = T_Ice;
 	
@@ -201,7 +82,7 @@ function main(irun)
     	physics_in{4}.Egroup = "Fracture";
     	physics_in{4}.visc = 1.0e-3;
     	physics_in{4}.Kf   = 1.0e9;
-    	physics_in{4}.FlowModel = flowtype;%"CubicLaw";"FrictionFactor"
+    	physics_in{4}.FlowModel = "FrictionFactor";%"CubicLaw";"FrictionFactor"
     	physics_in{4}.melt = true;
 		physics_in{4}.freeze = true;
 		physics_in{4}.rho_ice = 910;
@@ -248,11 +129,11 @@ function main(irun)
 	
     	%% initialization
     	mesh = Mesh(mesh_in);
-    	%mesh.plot(true, true, false, false);
+    	mesh.plot(true, true, false, false);
     	mesh.check();
 	
     	physics = Physics(mesh, physics_in, dt0);
-    	physics.time = t0;
+    	physics.time = -24*3600;
 	
     	t_max = 3600*2;
     	solver = Solver(physics, solver_in);
@@ -283,8 +164,8 @@ function main(irun)
 
 		if (tstep<10)
 			physics.dt = 1;
-		elseif (physics.time<-600)
-			physics.dt = 600;
+		elseif (physics.time<-120)
+			physics.dt = 120;
 		elseif (physics.time<-0.001)
 			physics.dt = -physics.time;
 		else

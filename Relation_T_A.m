@@ -17,8 +17,8 @@ for i=1:length(T)
 	A_A0(i) = T_to_A(T(i),0);
 end
 
-figure
-plot(T-273.15, A_A0)
+% figure
+% plot(T-273.15, A_A0)
 
 TProfileData = importdata('foxxTemperatureProfile.csv');
 TProfile.X = TProfileData.data(:,2);
@@ -40,23 +40,52 @@ for i=1:length(TPlot)
 	ft_Plot(i) = 2.0-0.0068*(TPlot(i)+273.15);   %https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2012JE004101
 end
 
-figure
-subplot(1,3,1)
-plot(TPlot, YPlot,'k-')
-hold on
-plot(TProfile.T(2:end), TProfile.X(2:end),'r*')
-xlabel('T [degC]')
-ylabel('y [m]')
+f = figure
+tiledlayout(1,3,"Padding","tight","TileSpacing","tight")
+nexttile
+plot(TPlot, YPlot,'k-','LineWidth',1)
+%hold on
+%plot(TProfile.T(2:end), TProfile.X(2:end),'r*')
+xlabel('$T\;[^\circ \mathrm{C}]$','Interpreter','latex')
+ylabel('$y\;[\mathrm{m}]$','Interpreter','latex')
+ylim([0 980])
+ax = gca;
+ax.FontSize = 8;
 
-subplot(1,3,2)
-plot(A_Plot, YPlot,'k-')
-xlabel('A [Pa^{-3} s^{-1}]')
-ylabel('y [m]')
+nexttile
+plot(A_Plot*1e24, YPlot,'k-','LineWidth',1)
+xlabel('$A\;[10^{-24}\;\mathrm{Pa}^{-3} \mathrm{s}^{-1}]$','Interpreter','latex')
+ylim([0 980])
+ax = gca;
+ax.FontSize = 8;
+ax.YTick = []
 
-subplot(1,3,3)
-plot(ft_Plot, YPlot,'k-')
-xlabel('f_t [MPa]')
-ylabel('y [m]')
+nexttile
+plot(ft_Plot, YPlot,'k-','LineWidth',1)
+xlabel('$f_t\;[\mathrm{MPa}]$','Interpreter','latex')
+ylim([0 980])
+ax = gca;
+ax.FontSize = 8;
+ax.YTick = []
 
-save("TProfile.mat","T_Ice")
+saveFigNow(f,"Figures/TempProfile",6,false,false)
 
+%save("TProfile.mat","T_Ice")
+
+function saveFigNow(fg, sname, HFig, SaveDouble, hasColorbar, cb)
+	fprintf(sname+"  ")
+
+	fg.Units = 'centimeters';
+	if (SaveDouble)
+		fg.Position = [2 2 17.8 HFig];
+	else
+		fg.Position = [2 2 8.7 HFig];
+	end
+
+
+	drawnow();
+	print(fg, sname+".png",'-dpng','-r1200'); fprintf(".png  ")
+	print(fg, sname+".jpg",'-djpeg','-r1200'); fprintf(".jpg  ")
+	print(fg, sname+".eps",'-depsc','-r1200'); fprintf(".eps  ")
+	print(fg, sname+".emf",'-dmeta','-r1200'); fprintf(".emf\n")
+end

@@ -75,35 +75,115 @@ function [Nodes, Elementgroups, Nodegroups, Area, rect] = MeshFromFile(obj, prop
 		BE{grp}(c(grp),:)=B_Elems(i,:);
 	end
 
-    Elementgroups{2}.name = "Bottom";
-    Elementgroups{2}.type = "L3B";
-	Elementgroups{2}.Elems = [BE{2}; BE{7}];
-
-    Elementgroups{3}.name = "Top";
-    Elementgroups{3}.type = "L3B";
-	Elementgroups{3}.Elems = [BE{5}; BE{10}];
-
-	Elementgroups{4}.name = "Left";
-    Elementgroups{4}.type = "L3B";
-	Elementgroups{4}.Elems = [BE{1}; BE{3}];
-
-	Elementgroups{5}.name = "Right";
-    Elementgroups{5}.type = "L3B";
-	Elementgroups{5}.Elems = [BE{11}; BE{12}];
+	if false
+    	Elementgroups{2}.name = "Bottom";
+    	Elementgroups{2}.type = "L3B";
+		Elementgroups{2}.Elems = [BE{2}; BE{7}];
 	
-	Elementgroups{6}.name = "FDown";
-    Elementgroups{6}.type = "L3B";
-	Elementgroups{6}.Elems = BE{8};
+    	Elementgroups{3}.name = "Top";
+    	Elementgroups{3}.type = "L3B";
+		Elementgroups{3}.Elems = [BE{5}; BE{10}];
+	
+		Elementgroups{4}.name = "Left";
+    	Elementgroups{4}.type = "L3B";
+		Elementgroups{4}.Elems = [BE{1}; BE{3}];
+	
+		Elementgroups{5}.name = "Right";
+    	Elementgroups{5}.type = "L3B";
+		Elementgroups{5}.Elems = [BE{11}; BE{12}];
+		
+		Elementgroups{6}.name = "FDown";
+    	Elementgroups{6}.type = "L3B";
+		Elementgroups{6}.Elems = BE{8};
+	
+		Elementgroups{7}.name = "FLeft";
+    	Elementgroups{7}.type = "L3B";
+		Elementgroups{7}.Elems = BE{4};	
+	
+		Elementgroups{8}.name = "FRight";
+    	Elementgroups{8}.type = "L3B";
+		Elementgroups{8}.Elems = BE{9};	
+	else
+		bg = [];
+		for i=1:length(BE)
+			ycoords = Nodes(BE{i},2);
+			if (sum(ycoords<-150)==length(ycoords))
+				bg(end+1) = i;
+			end
+		end
+    	Elementgroups{2}.name = "Bottom";
+    	Elementgroups{2}.type = "L3B";
+		Elementgroups{2}.Elems = [BE{bg(1)}; BE{bg(2)}];
+	
+		tg = [];
+		for i=1:length(BE)
+			ycoords = Nodes(BE{i},2);
+			if (sum(ycoords>500)==length(ycoords))
+				tg(end+1) = i;
+			end
+		end
 
-	Elementgroups{7}.name = "FLeft";
-    Elementgroups{7}.type = "L3B";
-	Elementgroups{7}.Elems = BE{4};	
+     	Elementgroups{3}.name = "Top";
+     	Elementgroups{3}.type = "L3B";
+ 		Elementgroups{3}.Elems = [BE{tg(1)}; BE{tg(2)}];
 
-	Elementgroups{8}.name = "FRight";
-    Elementgroups{8}.type = "L3B";
-	Elementgroups{8}.Elems = BE{9};	
+		lg = [];
+		for i=1:length(BE)
+			xcoords = Nodes(BE{i},1);
+			if (sum(xcoords<-500)==length(xcoords))
+				lg(end+1) = i;
+			end
+		end	
+	
+		Elementgroups{4}.name = "Left";
+    	Elementgroups{4}.type = "L3B";
+		Elementgroups{4}.Elems = [BE{lg(1)}; BE{lg(2)}];
 
-	for EG=2:8
+		rg = [];
+		for i=1:length(BE)
+			xcoords = Nodes(BE{i},1);
+			if (sum(xcoords>500)==length(xcoords))
+				rg(end+1) = i;
+			end
+		end	
+	
+		Elementgroups{5}.name = "Right";
+    	Elementgroups{5}.type = "L3B";
+		Elementgroups{5}.Elems = [BE{rg(1)}; BE{rg(2)}];
+
+		UsedGroups = [lg rg tg bg];
+		AvailableGroups = 1:length(BE);
+		AvailableGroups(UsedGroups) = [];
+
+		for i=1:length(AvailableGroups)
+			XMean(i) = mean(Nodes(BE{AvailableGroups(i)},1));
+			YMean(i) = mean(Nodes(BE{AvailableGroups(i)},2));
+		end
+
+		[~,downGroup] = max(YMean);
+		downGroup = AvailableGroups(downGroup);
+
+		[~,leftGroup] = min(XMean);
+		leftGroup = AvailableGroups(leftGroup);
+
+		[~,rightGroup] = max(XMean);
+		rightGroup = AvailableGroups(rightGroup);
+
+		
+		Elementgroups{6}.name = "FDown";
+    	Elementgroups{6}.type = "L3B";
+		Elementgroups{6}.Elems = BE{downGroup};
+	
+		Elementgroups{7}.name = "FLeft";
+    	Elementgroups{7}.type = "L3B";
+		Elementgroups{7}.Elems = BE{leftGroup};	
+	
+		Elementgroups{8}.name = "FRight";
+    	Elementgroups{8}.type = "L3B";
+		Elementgroups{8}.Elems = BE{rightGroup};	
+	end
+
+	for EG=2:length(Elementgroups)
 		clear firstCoords Elems_Temp
 
 		Elems_Old = Elementgroups{EG}.Elems;
@@ -156,37 +236,38 @@ function [Nodes, Elementgroups, Nodegroups, Area, rect] = MeshFromFile(obj, prop
 	end		
 
 	%%Insert Interfaces
-
-	Elementgroups{9}.name = "Fracture";
-    Elementgroups{9}.type = "LI6B";
-	for i=1:props.nfrac
-		Nds = Elementgroups{6}.Elems(end,:);
-		nnodes = length(Nodes);
-
-		ToSplit = Nds(2:3);
-		NewNodeNums = [nnodes+1; nnodes+2];
-		Nodes(NewNodeNums(1),:) = Nodes(ToSplit(1),:);
-		Nodes(NewNodeNums(2),:) = Nodes(ToSplit(2),:);
-
-		Elementgroups{6}.Elems(end,:) = [];
-		Elementgroups{9}.Elems(i,:) = [Nds(3:-1:1), NewNodeNums(2:-1:1)', Nds(1)];
-		if (i>1)
-			Elementgroups{9}.Elems(i-1,6) = NewNodeNums(2);
-		end
-		
-		for j=1:length(ToSplit)
-			for EG = 1:length(Elementgroups)-1
-				for e=1:length(Elementgroups{EG}.Elems)
-					nodeloc = find(Elementgroups{EG}.Elems(e,:)==ToSplit(j));
-					if (length(nodeloc) >0)
-						if EG==1
-							centre = 5;
-						else
-							centre = 2;
-						end
-						if (Nodes(Elementgroups{EG}.Elems(e,centre),1)>Nodes(ToSplit(1),1))
-							for k=1:length(nodeloc)
-                                Elementgroups{EG}.Elems(e,nodeloc(k)) = NewNodeNums(j);
+	if true
+		Elementgroups{9}.name = "Fracture";
+    	Elementgroups{9}.type = "LI6B";
+		for i=1:props.nfrac
+			Nds = Elementgroups{6}.Elems(end,:);
+			nnodes = length(Nodes);
+	
+			ToSplit = Nds(2:3);
+			NewNodeNums = [nnodes+1; nnodes+2];
+			Nodes(NewNodeNums(1),:) = Nodes(ToSplit(1),:);
+			Nodes(NewNodeNums(2),:) = Nodes(ToSplit(2),:);
+	
+			Elementgroups{6}.Elems(end,:) = [];
+			Elementgroups{9}.Elems(i,:) = [Nds(3:-1:1), NewNodeNums(2:-1:1)', Nds(1)];
+			if (i>1)
+				Elementgroups{9}.Elems(i-1,6) = NewNodeNums(2);
+			end
+			
+			for j=1:length(ToSplit)
+				for EG = 1:length(Elementgroups)-1
+					for e=1:length(Elementgroups{EG}.Elems)
+						nodeloc = find(Elementgroups{EG}.Elems(e,:)==ToSplit(j));
+						if (length(nodeloc) >0)
+							if EG==1
+								centre = 5;
+							else
+								centre = 2;
+							end
+							if (Nodes(Elementgroups{EG}.Elems(e,centre),1)>Nodes(ToSplit(1),1))
+								for k=1:length(nodeloc)
+                                	Elementgroups{EG}.Elems(e,nodeloc(k)) = NewNodeNums(j);
+								end
 							end
 						end
 					end
