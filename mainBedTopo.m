@@ -7,7 +7,7 @@ function main(irun)
 	
 	switch irun
 		case 1
-			MeshFile = "Meshes/mesh_-50m.mphtxt";
+			MeshFile = "Meshes/mesh_Das_25.mphtxt";
 			savefolder = "./Results/ref";
 	end
 
@@ -65,7 +65,7 @@ function main(irun)
 		physics_in{1}.TRef = 273.15;
 		physics_in{1}.n = 3;
 		physics_in{1}.T_Ice = T_Ice;
-    	physics_in{1}.Hmatswitch = 0;
+    	physics_in{1}.Hmatswitch = ["FLeft", "FRight"];
 	
     	physics_in{2}.type = "SelfWeight";
     	physics_in{2}.Egroup = "Internal";
@@ -75,7 +75,6 @@ function main(irun)
     	physics_in{3}.Egroup = "Fracture";
     	physics_in{3}.energy = 10;
     	physics_in{3}.dummy = 1e10*0;
-    	physics_in{3}.Hmatswitch = 0;
 		physics_in{3}.T_ice = T_Ice;
 	
     	physics_in{4}.type = "FractureFluid";

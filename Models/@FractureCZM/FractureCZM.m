@@ -12,7 +12,6 @@ classdef FractureCZM < BaseModel
         
         energy
         dummy
-        Hmatswitch
         
         hist %history parameter (element, ip)
         histOld
@@ -36,7 +35,6 @@ classdef FractureCZM < BaseModel
             
             obj.energy = inputs.energy;
             obj.dummy = inputs.dummy;
-            obj.Hmatswitch = inputs.Hmatswitch;
 			obj.T_ice = inputs.T_ice;
 			obj.ft = @(T) 2.0-0.0068*(T+273.15);
             
@@ -50,7 +48,7 @@ classdef FractureCZM < BaseModel
             end
         end
         
-		function [fc, f_t, dofsXY] = get_fc(obj, physics)
+		function [fc, dofsXY] = get_fc(obj, physics)
 			[direction, elem, ips] = obj.mesh.getNextFracture();
 			stresses = physics.Request_Info("stresses",elem,"Interior");
 			dstresses = physics.Request_Info("dstressesdxy",elem,"Interior");
@@ -60,27 +58,33 @@ classdef FractureCZM < BaseModel
             dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), nds);
             dofsXY = [dofsX; dofsY];
 
-			y = mean(obj.mesh.Nodes(nds,2));
-        
-			stress = squeeze(stresses(1, ips, :));
-
-			Ice_temp = obj.T_ice(y);
-			ts = obj.ft(Ice_temp);
-
-			if (direction == "Horizontal") %compare yy component
-				sel = [0;1;0;0];
-			else %compare xx component
-				sel = [1;0;0;0];
+			if (direction == "Horizontal")
+				y = 0;
+			else
+				y = mean(obj.mesh.Nodes(nds,2));
 			end
-
-			fc = sel'*stress-ts;
-			f_t = sel'*stress-ts;
+        
+			fc = -1e12;
+			for i=1:length(ips)
+				stress = squeeze(stresses(1, ips(i), :));
+	
+				Ice_temp = obj.T_ice(y);
+				ts = obj.ft(Ice_temp);
+	
+				if (direction == "Horizontal") %compare yy component
+					sel = [0;1;0;0];
+				else %compare xx component
+					sel = [1;0;0;0];
+				end
+	
+				fc  = max(fc,sel'*stress-ts);
+			end
 		end
 
         function Irr = Irreversibles(obj, physics)
             Irr = false;
             
-			[fc, ~, ~] = obj.get_fc(physics);
+			[fc, ~] = obj.get_fc(physics);
 			if (fc>=0 && physics.time>=0)
 				obj.mesh.Propagate_Disc_New(physics);
 				Irr = true;

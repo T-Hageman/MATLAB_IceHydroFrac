@@ -46,7 +46,21 @@ classdef ViscoElastic < BaseModel
             %% constuct plane-strain elastic stiffness matrix
             obj.poisson = inputs.poisson;
             obj.young = inputs.young;
-            obj.Hmatswitch = inputs.Hmatswitch;
+
+            GroupsToSep = inputs.Hmatswitch;
+			nds = []
+			for i=1:length(GroupsToSep)
+				ig = obj.mesh.getGroupIndex(GroupsToSep(i));
+				nds = [nds; obj.mesh.GetAllNodesForGroup(ig)];
+			end
+			xy = obj.mesh.Nodes(nds,:);
+			[~,order] = sort(xy(:,1));
+			xy = xy(order,:);
+			[~,order] = unique(xy(:,1));
+			xy = xy(order,:);
+			F = griddedInterpolant(xy(:,1),xy(:,2));
+			obj.Hmatswitch = @(x,y) F(x)<y;
+
 			obj.A0 = inputs.A0;
 			obj.n = inputs.n;
 			obj.Q = inputs.Q;
@@ -182,7 +196,7 @@ classdef ViscoElastic < BaseModel
 				for ip=1:length(w)
                     B = obj.getB(G(ip,:,:));
                     strain = B*XY;
-                    if (xy(2,ip) < obj.Hmatswitch)
+                    if (obj.Hmatswitch(xy(1,ip),xy(2,ip)) == false)
                         Aloc = 0;
                         D = obj.D_el2;                       
 					else
@@ -249,7 +263,7 @@ classdef ViscoElastic < BaseModel
                         B = obj.getB(G(ip,:,:));
                         %strain = B*XY;
 
-                        if (xy(2,ip) < obj.Hmatswitch)
+                        if (obj.Hmatswitch(xy(1,ip),xy(2,ip)) == false)
                             %stress = obj.D_el2*strain;
                             %f_el = f_el + B'*stress*w(ip);
                             K_el = K_el + B'*obj.D_el2*B*w(ip);                       
@@ -322,7 +336,7 @@ classdef ViscoElastic < BaseModel
                         B = obj.getB(G(ip,:,:));
                         strain = B*XY-squeeze(obj.strain_viscOld(elems(el),ip,1:4));
                         
-                        if (xy(2,ip) < obj.Hmatswitch)
+                        if (obj.Hmatswitch(xy(1,ip),xy(2,ip)) == false)
                             stress = obj.D_el2*strain; 
                             dStress = obj.D_el2*B;
                         else

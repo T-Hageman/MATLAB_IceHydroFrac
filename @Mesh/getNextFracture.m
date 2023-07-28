@@ -1,4 +1,4 @@
-function [direction, elem, ip] = getNextFracture(obj)
+function [direction, elem, ips] = getNextFracture(obj)
 
 	downGroup = 6;
 	leftGroup = 7;

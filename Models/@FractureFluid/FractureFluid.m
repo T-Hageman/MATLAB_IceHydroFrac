@@ -286,7 +286,7 @@ classdef FractureFluid < BaseModel
                     K_up = K_up - C_Lumped(cp)*(Nd'*n_est'*NL);
 
 					f_p  = f_p  - C_Lumped(cp)*NL'*n_est*Nd*(XY-XYOld)/dt;
-                    K_pu = K_pu - C_Lumped(cp)*NL'*n_est*Nd/dt;
+                    K_pu = K_pu - 0.5*C_Lumped(cp)*NL'*n_est*Nd/dt;
 
 					K_pp(cp,cp) = K_pp(cp,cp) - C_Lumped(cp)*1e-9; %some extra damping/stabilisation
                 end
@@ -376,14 +376,14 @@ classdef FractureFluid < BaseModel
 				it=it+1;
 				if (it>1000)
 					stop = true;
-					fprintf("        (ip not converged)"+string(err)+"/"+string(err0)+"\n");
+					fprintf("        (ip not converged)"+string(err)+"/"+string(err*err0)+"\n");
 				end
 			end
 
 			%results
-			qx = sol(1);
+			qx = sol(1); 
 			hmelt = sol(2);
-			h = sol(3);
+			h = max(1e-4, sol(3));
 
 			%derivatives
 			[f, C, D, Qprod] = obj.getFracK(sol, dp_dx, u, tfr, tOld, dt, hMelt_hist, Ice_temp);
@@ -407,9 +407,14 @@ classdef FractureFluid < BaseModel
 			C = zeros(3,3);
 			D = zeros(3,3);
 
-			smallH = 1e-6;
+			smallH = 1e-4;
 
-			hFlow = max(smallH,sol(3));
+			dH = 1.0;
+			hFlow = sol(3);
+			if (hFlow<smallH)
+				hFlow = smallH;
+				dH = 0.0;
+			end
 			[qxFlow, dqx_dh, dqx_dpdx] = obj.getFlow(dp_dx, hFlow);
 
 			ThermCap = obj.rho_ice*obj.melt_heat; 
@@ -436,7 +441,7 @@ classdef FractureFluid < BaseModel
 			% qx, hmelt, h
 			C(1,1) = 1; 
 			C(1,2) = 0;
-			C(1,3) = -dqx_dh;
+			C(1,3) = -dqx_dh*dH;
 			C(2,1) = -dQmelt_ds;
 			C(2,2) = ThermCap/dt;
 			C(2,3) = 0;
@@ -444,10 +449,10 @@ classdef FractureFluid < BaseModel
 			C(3,2) = -1;
 			C(3,3) = 1;
 
-			if (sol(3)<smallH)
-				f(3) = f(3) + 1e5*(sol(3)-smallH)^2;
-				C(3,3) = C(3,3) + 2*1e5*(sol(3)-smallH);
-			end
+% 			if (sol(3)<smallH)
+% 				f(3) = f(3) + 1e5*(sol(3)-smallH)^2;
+% 				C(3,3) = C(3,3) + 2*1e5*(sol(3)-smallH);
+% 			end
 
 			% dpdx, ujump
 			D(1,1) = -dqx_dpdx;
