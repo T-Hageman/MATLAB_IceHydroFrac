@@ -5,3 +5,12 @@
 *.png
 *.eps
 *.jpg
+Documentation/main.aux
+Documentation/main.bbl
+Documentation/main.blg
+Documentation/Figures/CaseOverview-eps-converted-to.pdf
+Documentation/main.log
+Documentation/main.out
+Documentation/main.spl
+Documentation/main.synctex.gz
+Documentation/main.toc

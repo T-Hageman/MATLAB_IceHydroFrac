@@ -68,9 +68,9 @@ ax = gca;
 ax.FontSize = 8;
 ax.YTick = []
 
-saveFigNow(f,"Figures/TempProfile",6,false,false)
+%saveFigNow(f,"Figures/TempProfile",6,false,false)
 
-%save("TProfile.mat","T_Ice")
+save("TProfile.mat","T_Ice")
 
 function saveFigNow(fg, sname, HFig, SaveDouble, hasColorbar, cb)
 	fprintf(sname+"  ")
