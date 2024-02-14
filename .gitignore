@@ -1,10 +1,5 @@
 
 *.asv
-*.mat
-*.emf
-*.png
-*.eps
-*.jpg
 Documentation/main.aux
 Documentation/main.bbl
 Documentation/main.blg
