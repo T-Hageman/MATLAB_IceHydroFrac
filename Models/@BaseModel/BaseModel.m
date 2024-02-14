@@ -1,6 +1,5 @@
 classdef BaseModel < handle
-    %CONSTRAINER Summary of this class goes here
-    %   Detailed explanation goes here
+    %BASEMODEL Template class inherited by all other physics models
     
     properties
         

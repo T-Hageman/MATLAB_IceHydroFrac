@@ -130,9 +130,80 @@ In addition to these time series, full outputs are saved after every 10 time ste
 These output files are appended with the number of the time increment during which the output is saved, and they contain all information required to restart a previously interrupted simulation. 
 
 \subsection{Models}
+The models implement parts of the relevant physics. At initialization time, models are constructed by passing their relevant input parameters as:
+\lstinputlisting[firstnumber=47,firstline=47,lastline=47,style=mystyle,title=Models/@ViscoElastic/ViscoElastic.m]{../Models/@ViscoElastic/ViscoElastic.m}
+This also saves pointers to the physics and mesh objects, allowing interacting with these whenever needed. The physics implemented by the model are added within the GetKf function, called whenever an updated tangent stiffness matrix and/or force vector is needed:
+\lstinputlisting[firstnumber=256,firstline=256,lastline=256,style=mystyle]{../Models/@ViscoElastic/ViscoElastic.m}
+When models have history-dependent parameters, these are updated by calling the commit function, 
+\lstinputlisting[firstnumber=127,firstline=127,lastline=127,style=mystyle]{../Models/@ViscoElastic/ViscoElastic.m}
+where the commit type indicates either "TimeDep" for committing time-irreversible data (e.g. plastic strains, time-integrated quantities), "irreversibles" for path-irreversible quantities (e.g. cohesive zone models), and "StartIt" for anything that needs to be performed at the start of each time increment.  
 
 
-\subsubsection{BaseModel}
+\subsubsection{ViscoElastic.m}
+This model implements the static momentum balance:
+\begin{equation}
+-\nabla \cdot \bm{\sigma} = \bm{0} \label{eq:mom}
+\end{equation}
+with the weak form of this contribution given by:
+\begin{equation}
+\int_\Omega \bm{B}^T \bm{D} \bm{B}\bm{u}^{t+\Delta t} - \bm{B}^T \bm{D} \varepsilon_{\text{v}}^{t+\Delta t}\;\text{d}\Omega \label{eq:weak_mom}
+\end{equation}
+with the plastic strains determined once per time increment, based on the displacements at the end of the previous time increment:
+\begin{equation}
+	\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t} = \mathbf{\varepsilon}_{\text{v}}^{t}+\Delta t A \left( \left({\mathbf{u}^{t}}^T\bm{B}^T-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right) \bm{D}^T \bm{J_2}\bm{D} \left(\bm{B} \mathbf{u}^t-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right) \right)^{\frac{n-1}{2}}\bm{J_2}\bm{D} \left(\bm{B} \mathbf{u}^t-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right)
+\end{equation}
+with $\bm{B}$ the displacement to strain mapping matrix, $\epsilon=\bm{B}\mathbf{u}$, and $\bm{J}_2$ the deviatoric stress operator:
+\begin{equation}
+	\mathbf{\sigma}_{dev} = \bm{J} \mathbf{\sigma} \qquad \bm{J}_2 = \begin{bmatrix} 2/3 & -1/3 & -1/3 & 0\\ -1/3 & -1/3 & 2/3 & 0 \\ -1/3 & -1/3 & 2/3 & 0 \\ 0 & 0 & 0 & 1 \end{bmatrix} 
+\end{equation}
+
+The input parameters for this model are defined by:
+\lstinputlisting[firstnumber=64,firstline=64,lastline=74,style=mystyle,title=main.m]{../main.m}
+where "Type" is the name of this model, "Egroup" indicates the domain this model is applied to, and all other are the physical parameters for this model. The temperature of the ice is defined as an interpolation function, which is previously loaded from a file or defined to return a constant by:
+\lstinputlisting[firstnumber=12,firstline=12,lastline=17,style=mystyle]{../main.m}
+
+
+For computational efficiency, \cref{eq:weak_mom} is split into two contributions: The first term contributes to the stiffness matrix and force vector, with the stiffness matrix only needing to be updated when the mesh changes (due to crack propagation):
+\lstinputlisting[firstnumber=263,firstline=263,lastline=267,style=mystyle,title=Models/@ViscoElastic/ViscoElastic.m]{../Models/@ViscoElastic/ViscoElastic.m}
+, with the stiffness matrix assembled in a standard manner as:
+\lstinputlisting[firstnumber=286,firstline=286,lastline=290,style=mystyle]{../Models/@ViscoElastic/ViscoElastic.m}
+where the height of integration points is checked to determine whether elements are located within the ice or rock parts of the domain. This tangent matrix is then used together with a similar force vector resulting for the viscous part of \cref{eq:weak_mom} to add contributions to the global foce vector as:
+\lstinputlisting[firstnumber=300,firstline=300,lastline=304,style=mystyle]{../Models/@ViscoElastic/ViscoElastic.m}
+As a result, the force vector for the visco-plastic component and the tangent matrix for the linear-elastic components only need to be updated once per time increment, independent of the actual amount of non-linear iterations performed within that increment.
+
+\subsubsection{Inertia.m}
+This model adds inertia terms to the momentum balance, appending the momentum balance from \cref{eq:mom} to read:
+\begin{equation}
+	\rho_\pi \ddot{\mathbf{u}} - \nabla \cdot \mathbf{\sigma} = \mathbf{0}
+\end{equation}
+where the first term is the newly added term in this model (note: this model is additive to the ViscoElastic.m model, it does not add the stress term by itself). The inputs required to initialize this model are given by:
+\lstinputlisting[firstnumber=76,firstline=76,lastline=81,style=mystyle,title=main.m]{../main.m}
+where the time discretisation parameters beta and gamma are used to define the acceleration in terms of history parameters (the old velocity and acceleration) and the current displacement as:
+\begin{align}
+     \dot{\mathbf{u}}^{t+\Delta t} &= \frac{\gamma}{\beta \Delta t} \left(\mathbf{u}^{t+\Delta t} - \mathbf{u}^t \right) - \left( \frac{\gamma}{\beta} - 1\right) \dot{\mathbf{u}}^t - \left(\frac{\Delta t \gamma}{2\beta} - \Delta t\right) \ddot{\mathbf{u}}^t \\
+    \ddot{\mathbf{u}}^{t+\Delta t} &= \frac{1}{\beta \Delta t^2}  \left(\mathbf{u}^{t+\Delta t} - \mathbf{u}^t \right) - \frac{1}{\beta \Delta t} \dot{\mathbf{u}}^t - \left(\frac{1}{2\beta} - 1\right) \ddot{\mathbf{u}}^t 
+\end{align}
+Similar to the viscoelastic model, the tangent matrix for this model is calculated once, and then re-used to assemble the global tangent matrix every iteration. 
+
+\subsubsection{SelfWeight.m}
+This model adds the gravity contribution to the momentum balance, appending the momentum balance to:
+\begin{equation}
+	\rho_\pi \ddot{\mathbf{u}} - \nabla \cdot \mathbf{\sigma} + \rho_\pi \mathbf{g}= \mathbf{0}
+\end{equation}
+For simplicity, this gravity force is added to the global force vector, with no differentiation made between internal and external forces. Inputs for this model are the element group the model is acting on, and the densities of ice and rock:
+\lstinputlisting[firstnumber=83,firstline=83,lastline=87,style=mystyle,title=main.m]{../main.m}
+
+\subsubsection{FractureCZM.m}
+
+
+
+\subsubsection{FractureFluid.m}
+
+
+
+
+\subsubsection{LakeBoundary.m}
+
 
 
 

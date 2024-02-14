@@ -1,6 +1,11 @@
 classdef Inertia < BaseModel
-    %LINEARELASTIC Summary of this class goes here
-    %   Detailed explanation goes here
+    %INERTIA This model adds inertial terms to the mass balance, input
+	%parameters:
+	% physics_in{2}.type = "Inertia";
+	% physics_in{2}.Egroup = "Internal";
+	% physics_in{2}.density = 950;		%Density [kg/m^3]
+	% physics_in{2}.beta    = 0.4;		%Time discretisation constant (Newmark scheme)
+	% physics_in{2}.gamma   = 0.75;		%Time discretisation constant (Newmark scheme)
     
     properties
         mesh

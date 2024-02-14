@@ -1,36 +1,53 @@
 classdef ViscoElastic < BaseModel
-    %ViscoElastic Summary of this class goes here
-    %   Detailed explanation goes here
+    %VISCOELASTIC This model implements the momentum balance, seperating
+	%the domain between ice and rock domains. It also implements the
+	%return-mapping schemes required for visco-plastic deformations, and
+	%provides support for evaluating stresses throughout the domain (used
+	%to determine crack propagation). Required input parameters for this
+	%model:
+	% physics_in{1}.type = "ViscoElastic";
+	% physics_in{1}.Egroup = "Internal";
+	% physics_in{1}.young = [9e9; 20e9];	%Youngs modulus of Ice and Rock [Pa]
+	% physics_in{1}.poisson = [0.33; 0.25];	%Poisson ratio of ice and rock [-]
+	% physics_in{1}.A0 = 5e-24;				%Glenns law creep coefficient [Pa^-3 s^-1]
+	% physics_in{1}.Q = 150e3;				%Energy for scaling creep with temperature [J]
+	% physics_in{1}.TRef = 273.15;			%Reference temperature at which A0 is determined [K]
+	% physics_in{1}.n = 3;					%Glenns law creep exponent [-]
+	% physics_in{1}.T_Ice = T_Ice;			%Temperature profile for the ice
+	% physics_in{1}.Hmatswitch = 0;			%Depth of ice-rock interface
     
     properties
-        mesh
-        myName
-        myGroup
-        myGroupIndex
-        dofSpace
-        dofTypeIndices
+        mesh			%Pointer to the mesh object
+        myName			%Name of this model
+        myGroup			%String to indicate the element group this model is applied to
+        myGroupIndex	%Index of the element group this model is applied to
+        dofSpace		%Pointer to the degree of freedom object
+        dofTypeIndices	%Indices to indicate the types of degree of freedom associated with the model
         
-        poisson
-        young
-        D_el
-        D_el2
-        Hmatswitch
-        myK
-		A0
-		Q
-		TRef
-		T_Ice
-		n
-		P
-		FVisc;
-		strain_visc;
-		strain_viscOld;
+        poisson		%Poisson ratio
+        young		%Youngs modulus
+        D_el		%linear-elastic stiffness matrix (ice)
+        D_el2		%linear-elastic stiffness matrix (rock)
+        Hmatswitch	%seperation line for ice-rock interface
+        myK			%locally saved copy of the lin. el. stiffness matrix
+		A0			%Glenns law creep coefficient
+		Q			%Energy for scaling creep with temperature
+		TRef		%Reference temperature at which A0 is determined
+		T_Ice		%Temperature profile for the ice
+		n			%Glenns law creep exponent
+		P			%Deviatoric stress mapping matrix
+		FVisc;		%contribution of viscous strains to force vector
+		strain_visc;%current viscous strains
+		strain_viscOld;%viscous strains at the end of the old time increment
 
-		R = 8.31446261815324;
+		R = 8.31446261815324; %gas constant
     end
     
     methods
         function obj = ViscoElastic(mesh, physics, inputs)
+			%Initializes the model based on input properties, and links to
+			%the mesh and physics objects.
+
             %% save inputs to object
             obj.myName = "ViscoElastic";
             disp("Initializing "+obj.myName)
@@ -108,7 +125,11 @@ classdef ViscoElastic < BaseModel
         end
         
         function Commit(obj, physics, commit_type)
-            if (commit_type == "Timedep")
+			% Commits the plastic strains (in case of TimeDep) or
+			% re-calculates the plastic strains if either the mesh has
+			% changed, or the next time increment has started
+
+			if (commit_type == "Timedep")
                 obj.strain_viscOld = obj.strain_visc;
 			end
 			if (commit_type == "Irrevirsibles")
@@ -122,6 +143,8 @@ classdef ViscoElastic < BaseModel
         end
 
 		function [stress, strain_ve_new] = return_mapping(obj, strain_total, strain_ve_old, A, D, dt)
+			%Return mapping scheme to obtain the new stressees and viscous
+			%strains within a single integration point
 			sol(1:4,1) = D*(strain_total - strain_ve_old);
 			sol(5:8,1) = strain_ve_old;
 
@@ -160,6 +183,7 @@ classdef ViscoElastic < BaseModel
 		end
 
 		function [K,f] = return_mapping_getKF(obj, sol, strain_total, strain_ve_old, A, D, dt)
+			%Tangent matrices used by return mapping scheme
 			f(1:4,1) = sol(1:4) - D*(strain_total-sol(5:8));
 			f(5:8,1) = sol(5:8) - strain_ve_old - dt*A*(sol(1:4)'*obj.P'*obj.P*sol(1:4))^((obj.n-1)/2)*obj.P*sol(1:4);
 
@@ -169,6 +193,8 @@ classdef ViscoElastic < BaseModel
 		end
 
 		function UpdateVisc(obj, physics)
+			%updates the viscous deformations at the start of each time
+			%increment
 			fprintf("        ViscoElastic UpdateVisc:")
 			t = tic;
 
@@ -204,10 +230,7 @@ classdef ViscoElastic < BaseModel
                         Aloc = obj.A0*exp(-obj.Q/obj.R * (1/T_Here-1/obj.TRef));
                         D = obj.D_el;
                     end
-                    %stress = obj.D_el*(strain-squeeze(obj.strain_viscOld(n_el,ip,1:4)));
 
-					%dVPStrain_dt = Aloc*(max(1e-6,0.5*stress'*obj.P'*obj.P*stress))^((obj.n-1)/2)*obj.P*stress;
-					%Strain_VP(ip,1:4) = squeeze(obj.strain_viscOld(n_el,ip,1:4)) + dVPStrain_dt*dt;
 					[~, Strain_VP(ip,1:4)] = obj.return_mapping(strain, squeeze(obj.strain_viscOld(n_el,ip,1:4)), Aloc, D, dt);
 
                     f_el = f_el - w(ip)*B'*D*Strain_VP(ip,1:4)';
@@ -231,6 +254,9 @@ classdef ViscoElastic < BaseModel
 		end
 
         function getKf(obj, physics)
+			%adds contributions of the momentum balance to the overall
+			%stiffness matrix and force vector
+
             fprintf("        ViscoElastic get Matrix:")
             t = tic;
             
@@ -253,23 +279,13 @@ classdef ViscoElastic < BaseModel
                     dofsY = obj.dofSpace.getDofIndices(obj.dofTypeIndices(2), Elem_Nodes);
                     dofsXY = [dofsX; dofsY];
 
-                    %X = physics.StateVec(dofsX);
-                    %Y = physics.StateVec(dofsY);
-                    %XY = [X;Y];
-
-                    %f_el = zeros(length(dofsXY), 1);
                     K_el = zeros(length(dofsXY));
                     for ip=1:length(w)
                         B = obj.getB(G(ip,:,:));
-                        %strain = B*XY;
 
                         if (obj.Hmatswitch(xy(1,ip),xy(2,ip)) == false)
-                            %stress = obj.D_el2*strain;
-                            %f_el = f_el + B'*stress*w(ip);
                             K_el = K_el + B'*obj.D_el2*B*w(ip);                       
-                        else
-                            %stress = obj.D_el*strain;
-                            %f_el = f_el + B'*stress*w(ip);
+						else
                             K_el = K_el + B'*obj.D_el*B*w(ip);
                         end
                     end
@@ -286,7 +302,6 @@ classdef ViscoElastic < BaseModel
 				physics.fint = physics.fint + obj.FVisc;
 			end
             physics.K = physics.K + obj.myK;
-            
             
             tElapsed = toc(t);
             fprintf("            (Assemble time:"+string(tElapsed)+")\n");
