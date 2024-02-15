@@ -1,6 +1,12 @@
 classdef FractureCZM < BaseModel
-    %FractureCZM Summary of this class goes here
-    %   Detailed explanation goes here
+    %FractureCZM Implements cohesive fracture and its propagation crierium,
+	%input parameters required:
+    % physics_in{4}.type = "FractureCZM";
+	% physics_in{4}.Egroup = "Fracture";
+	% physics_in{4}.energy = 10;			%Fracture release energy [J/m^2]
+	% physics_in{4}.dummy = 0*1e10;		%Dummy stiffness to prevent walls from penetrating
+	% physics_in{4}.Hmatswitch = 0;		%Depth of ice-rock interface
+	% physics_in{4}.T_ice = T_Ice;		%Temperature profile of ice
     
     properties
         mesh
@@ -146,24 +152,18 @@ classdef FractureCZM < BaseModel
                     hstOld = obj.histOld(n_el, ip);
                     tau = zeros(2,1);
                     dtaudh = zeros(2,2);
-                     if (true)  %use czm
-                         if (h>=hstOld)
-                             hloc = h;
-                             tau(1) = f_t * exp(-f_t*h/obj.energy);
-                             dtaudh(1,1) = -f_t.^2/obj.energy * exp(-f_t*h/obj.energy);
-						 elseif (h>0)
-                             hloc = hstOld;
-                             tau(1) = f_t * exp(-f_t*hstOld/obj.energy)*h/hstOld;
-                             dtaudh(1,1) = f_t * exp(-f_t*hstOld/obj.energy)/hstOld;
-						else
-							hloc = hstOld;
-							%tractions via no-pen condition
-						end
-                     else
+                    if (h>=hstOld)
                          hloc = h;
-                         tau(1) = 0.0;
-                         dtaudh(1,1) = 0.0;
-                     end
+                         tau(1) = f_t * exp(-f_t*h/obj.energy);
+                         dtaudh(1,1) = -f_t.^2/obj.energy * exp(-f_t*h/obj.energy);
+					elseif (h>0)
+                         hloc = hstOld;
+                         tau(1) = f_t * exp(-f_t*hstOld/obj.energy)*h/hstOld;
+                         dtaudh(1,1) = f_t * exp(-f_t*hstOld/obj.energy)/hstOld;
+					else
+						hloc = hstOld;
+						%tractions via no-pen condition
+					end
                     newHist(n_el, ip) = hloc;
                     R = zeros(2,2);
                     R(1,:) = nvec(ip,:); R(2,:) = tvec(ip,:);

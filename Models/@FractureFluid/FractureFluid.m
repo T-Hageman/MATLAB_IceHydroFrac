@@ -1,6 +1,19 @@
 classdef FractureFluid < BaseModel
-    %FractureFluid Summary of this class goes here
-    %   Detailed explanation goes here
+    %FractureFluid Fluid flows and thermals within the crevasse. Input
+	%parameters:
+    % physics_in{5}.type = "FractureFluid";
+	% physics_in{5}.Egroup = "Fracture";
+	% physics_in{5}.visc = 1.0e-3;		%water viscosity [Pa s]
+	% physics_in{5}.Kf   = 1.0e9;			%Water compressibility [Pa]
+	% physics_in{5}.FlowModel = "FrictionFactor";   %"CubicLaw";"FrictionFactor", Model used for fluid flow within crevasse
+	% physics_in{5}.melt = true;			%Include wall melting
+	% physics_in{5}.freeze = true;		%Include wall freezing
+	% physics_in{5}.rho_ice = 910;		%Density of ice [kg/m^3]
+	% physics_in{5}.rho_water = 1000;		%Density of water [kg/m^3]
+	% physics_in{5}.cp_ice = 2115;		%heat capacity of ice [J/kg]
+	% physics_in{5}.melt_heat = 335000;	%latent heat of ice-water tansition [J/kg]
+	% physics_in{5}.T_ice = T_Ice;		%Temperature profile
+	% physics_in{5}.k_ice = 2;			%Thermal conductivity of ice [J/K/m^2]
     
     properties
         mesh
@@ -467,7 +480,6 @@ classdef FractureFluid < BaseModel
 			if (h<0) 
 				h=0; 
 			end
-
         	if (obj.FlowModel == "CubicLaw")
             	qxFlow = -h^3/(12*obj.visc)*dp_dx;
             	dqx_dh = -3*(h)^2/(12*obj.visc)*dp_dx;

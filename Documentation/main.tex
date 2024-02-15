@@ -9,6 +9,7 @@
 \usepackage{upgreek}
 \usepackage{bm} %bold symbols by using \bm
 \usepackage{mathtools, nccmath} %added for \xrightleftharpoons
+\usepackage{stmaryrd} %math symbols
 
 \usepackage{subcaption} %allowing for subcaptions and subfigures
 \captionsetup[sub]{font=normalsize}%normalsize
@@ -54,7 +55,7 @@
 \newcommand{\citeMe}{\href{https://doi.org/10.1016/j.cma.2023.116235}{T Hageman, JZ Mejia,R Duddu, and E {Martinez-Pa{\~n}eda}. \textit{Ice Viscosity Governs Hydraulic Fracture Causing Rapid Drainage of Supraglacial Lakes}. The cryosphere} \citep{Hageman}}
 
 \begin{document}
-
+\pagenumbering{gobble}
 \begin{frontmatter}
 \title{IceHydroFrac: A MATLAB code to simulate water-filled crevasse propagation and uplifting of ice sheets }
 
@@ -91,6 +92,7 @@ MATLAB, Hydraulic fracture, Greenland Ice Sheet, Crevasse, Numerical simulation,
 \tableofcontents
 
 \newpage
+\pagenumbering{arabic}
 \section{Introduction}
 \todo{Intro sentences}
 
@@ -188,26 +190,100 @@ Similar to the viscoelastic model, the tangent matrix for this model is calculat
 \subsubsection{SelfWeight.m}
 This model adds the gravity contribution to the momentum balance, appending the momentum balance to:
 \begin{equation}
-	\rho_\pi \ddot{\mathbf{u}} - \nabla \cdot \mathbf{\sigma} + \rho_\pi \mathbf{g}= \mathbf{0}
+	\rho_\pi \ddot{\mathbf{u}} - \nabla \cdot \mathbf{\sigma} - \rho_\pi \mathbf{g}= \mathbf{0}
 \end{equation}
 For simplicity, this gravity force is added to the global force vector, with no differentiation made between internal and external forces. Inputs for this model are the element group the model is acting on, and the densities of ice and rock:
 \lstinputlisting[firstnumber=83,firstline=83,lastline=87,style=mystyle,title=main.m]{../main.m}
 
 \subsubsection{FractureCZM.m}
+This model adds the cohesive fracture model, defined by the interface tractions normal to the fracture surface:
+\begin{equation}
+    \mathbf{\uptau}_{CZM} = -f_\mathrm{t} \mathbf{n} \exp\left(-\llbracket \mathbf{u} \rrbracket \cdot \mathbf{n} \frac{f_\mathrm{t}}{G_\mathrm{c}}\right)
+\end{equation}
+It also manages the propagation criteria for fracture propagation, allowing the crack to propagate when $\sigma\cdot \mathbf{n}-f_t>0$. 
 
+To initialize the model, the input parameters required are:
+\lstinputlisting[firstnumber=88,firstline=88,lastline=94,style=mystyle,title=main.m]{../main.m}
+where the temperature profile that is given as input is used to obtain the tensile strength via:
+\lstinputlisting[firstnumber=45,firstline=45,lastline=45,style=mystyle,title=Models/@FractureCZM/FractureCZM.m]{../Models/@FractureCZM/FractureCZM.m}
 
+For the surface tractions, the maximum displacement is saved as a history variable, saved during the assembly of the force and tangent stiffness matrix:
+\lstinputlisting[firstnumber=155,firstline=155,lastline=167,style=mystyle]{../Models/@FractureCZM/FractureCZM.m}
+which also produces the surface traction normal to the surface, tau(1), and its derivative dtaudh(1,1). The tangent component of this traction is set to zero, and during assembly this vector is rotated from the local to the global coordinate system. To improve the stability of the no-penetration condition, used to enforce contact between the crevasse walls, a lumped integration scheme is used, with sets of nodes contributing on a set-by-set basis to the overall force vector as:
+\lstinputlisting[firstnumber=174,firstline=174,lastline=184,style=mystyle]{../Models/@FractureCZM/FractureCZM.m}
+with this condition only activating when the crevasse opening height is negative. 
+
+The fracture criterion is evaluated in the function
+\lstinputlisting[firstnumber=57,firstline=57,lastline=57,style=mystyle]{../Models/@FractureCZM/FractureCZM.m}
+This function queries the elements ahead of the crack tip to obtain its stresses
+\lstinputlisting[firstnumber=58,firstline=58,lastline=59,style=mystyle]{../Models/@FractureCZM/FractureCZM.m}
+which are compared to the temperature-dependent tensile strength. If the propagation criterion is exceeded, the mesh is addapted to include a newly inserted interface element:
+\lstinputlisting[firstnumber=93,firstline=93,lastline=97,style=mystyle]{../Models/@FractureCZM/FractureCZM.m}
 
 \subsubsection{FractureFluid.m}
+FractureFluid.m implements all the fluid flow and thermal related equations for the water within the crevasse, and is defined by the input parameters:
+\lstinputlisting[firstnumber=96,firstline=96,lastline=109,style=mystyle,title=main.m]{../main.m}
+Notably, the input "FlowModel" allows selecting either turbulent flow, based on a friction factor approach via:
+\begin{equation}
+    q = -2\rho_{\text{w}}^{-\frac{1}{2}}k_{\text{wall}}^{-\frac{1}{6}}f_0^{-\frac{1}{2}} h^{\frac{5}{3}}\left|\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right|^{-\frac{1}{2}}\left(\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right) \label{eq:qx}
+\end{equation}
+or laminar flow, using the analytic solution for uni-directional pressure-driven fluid flow between flat plates:
+\begin{equation}
+	q = \frac{h^3}{12\mu} \left(\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right)
+\end{equation}
+with this choice of model being set as either "FrictionFactor" for turbulent flow, or "CubicLaw" for laminar flow. This choice is applied to the complete crevasse, and no checking is performed whether the fluid velocity warrants laminar or turbulent flow (based on simulations performed for our paper, the Reynolds number indicates turbulent for our use cases). 
 
+This fluid flux is used within the mass balance:
+\begin{equation}
+    \frac{\partial q}{\partial \xi} + \dot{h} - \frac{\rho_{\text{i}}}{\rho_{\text{w}}} \dot{h}_{\text{melt}}+ \frac{h}{K_{\text{w}}}\dot{p} = 0 \label{eq:MassBalance}
+\end{equation}
+which also requires changes in local opening height, and melting rate. These are obtained by solving the coupled system of equations within each integration point:
+\begin{align}
+    q &= -2\rho_{\text{w}}^{-\frac{1}{2}}k_{\text{wall}}^{-\frac{1}{6}}f_0^{-\frac{1}{2}} h^{\frac{5}{3}}\left|\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right|^{-\frac{1}{2}}\left(\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right) \label{SIeq:qx}\\
+    0&=\rho_{\text{i}} \mathcal{L}\dot{h}_{\text{melt}} + \frac{k^{\frac{1}{2}}T_\infty \rho_{\text{i}}^{\frac{1}{2}}c_{\mathrm{p}}^{\frac{1}{2}}}{\pi^{\frac{1}{2}}\left(t-t_0\right)^{\frac{3}{2}}}  + q \left(\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right) \label{SIeq:hmelt}\\
+    h &= h_{\text{melt}} + \mathbf{n}\cdot\llbracket \mathbf{u} \rrbracket\label{SIeq:htotal}
+\end{align}
+Defining the momentum balance of the fluid, thermal balance, and total opening height respectively. This system is solved in a coupled manner, using:
+\begin{equation}
+    \bm{C}_{ip} \begin{bmatrix} \mathrm{d}{q}_{ip}^{t+\Delta t} \\ \mathrm{d} {h_{\text{melt}}}_{ip}^{t+\Delta t} \\ \mathrm{d} h^{t+\Delta t}_{ip} \end{bmatrix}_{i+1} = - \begin{bmatrix} f_{1,ip} \\ f_{2,ip} \\ f_{3,ip} \end{bmatrix}_i,
+\end{equation}
+where the integration-point level tangent matrix given by:
+\begin{equation}
+    \bm{C}_{ip} = \begin{bmatrix} 1 & 0 & \frac{10}{3}\rho_{\text{w}}^{-\frac{1}{2}}k_{\text{wall}}^{-\frac{1}{6}}f_0^{-\frac{1}{2}} {h_{ip}^{t+\Delta t}}^{\frac{2}{3}}\left|\bm{\nabla}\mathbf{N}_\mathrm{f} \mathbf{p}^{t+\Delta t}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right|^{-\frac{1}{2}}\left(\bm{\nabla}\mathbf{N}_\mathrm{f} \mathbf{p}^{t+\Delta t}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right) \\
+    \bm{\nabla}\mathbf{N}_f \mathbf{p}^{t+\Delta t}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s} & \frac{\rho_{\text{i}} \mathcal{L}}{\Delta t} & 0 \\
+    0 & -1 & 1\end{bmatrix} \label{SIeq:CMat}
+\end{equation}
+and during the assembly of the tangent system matrix for the global system, consistent tangent matrices are obtained via:
+\begin{equation}
+\begin{split}
+    &\begin{bmatrix} \frac{\partial q}{\partial \mathbf{p}} & \frac{\partial q}{\partial \mathbf{u}} \\ \frac{\partial h_{\text{melt}}}{\partial \mathbf{p}} & \frac{\partial h_{\text{melt}}}{\partial \mathbf{u}} \\ \frac{\partial h}{\partial \mathbf{p}} & \frac{\partial h}{\partial \mathbf{u}} \end{bmatrix} = -\bm{C}^{-1}_{ip} \begin{bmatrix} \rho_{\text{w}}^{-\frac{1}{2}}k_{\text{wall}}^{-\frac{1}{6}}f_0^{-\frac{1}{2}} {h_{ip}^{t+\Delta t}}^{\frac{5}{3}}\left|\bm{\nabla}\mathbf{N}_\mathrm{f} \mathbf{p}^{t+\Delta t}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right|^{-\frac{1}{2}} \bm{\nabla} \mathbf{N}_\mathrm{f} & 0 \\ {q}_{ip}^{t+\Delta t} \bm{\nabla} \mathbf{N}_\mathrm{f} & 0 \\ 0 & -\bm{N}_\mathrm{d} \end{bmatrix} \label{SIeq:consistent_Tangent}
+\end{split}
+\end{equation}
 
-
+Within the code, this procedure is implemented through
+\lstinputlisting[firstnumber=343,firstline=343,lastline=343,style=mystyle,title=Models/@FractureFluid/FractureFluid.m]{../Models/@FractureFluid/FractureFluid.m}
+which takes the pressure gradient and displacement jump (and saved history variables), and returns the fluid flux, melting height, and total opening height and their derivatives. This function is aided by 
+\lstinputlisting[firstnumber=418,firstline=418,lastline=418,style=mystyle]{../Models/@FractureFluid/FractureFluid.m}
+which returns the C and D matrices defined above, and the force vector. Additionally, this uses the function 
+\lstinputlisting[firstnumber=479,firstline=479,lastline=495,style=mystyle]{../Models/@FractureFluid/FractureFluid.m}
+to determine the fluid flux, depending on the used model.
 
 \subsubsection{LakeBoundary.m}
 
 
 
 
-\subsubsection{Constrainer}
+
+
+\subsubsection{Constrainer.m}
+
+
+
+
+
+
+\subsection{Mesh}
+
 
 
 

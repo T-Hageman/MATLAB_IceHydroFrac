@@ -1,6 +1,8 @@
 classdef SelfWeight < BaseModel
-    %SelfWeight Summary of this class goes here
-    %   Detailed explanation goes here
+    %SelfWeight Adds the gravity term to the momentum balance. Inputs:
+	% physics_in{3}.type = "SelfWeight";
+	% physics_in{3}.Egroup = "Internal";
+	% physics_in{3}.density = [910; 2500];	%Density [kg/m^3]
     
     properties
         mesh
