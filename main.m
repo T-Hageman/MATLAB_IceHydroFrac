@@ -4,14 +4,14 @@ function main()
 
 	%flag indicating whether running locally or on a high-performance
 	%computing cluster (surpresses visual outputs)
-	hpc = true;
+	hpc = false;
 
 	%folder to which the results will be saved
 	savefolder = "./Results";
 
 	%Temperature profile used
-	if false
-		T_Ice = @(y) -3+0*y; 
+	if true
+		T_Ice = @(y) min(0.0,1.0e-4*y*(y-250)); 
 	else
 		load("TProfile.mat","T_Ice");
 	end
@@ -19,7 +19,7 @@ function main()
 	%file containing the mesh, and size of interface elements (must match
 	%the size used within the mesh file)
 	dx_elem = 2.5;
-	meshName = "Meshes/mesh_Das_25.mphtxt";
+	meshName = "Meshes/mesh_3000x300m.mphtxt"; %mesh_Das_25.mphtxt
 
 	%start parrallel pool
 	mkdir(savefolder);
@@ -71,7 +71,7 @@ function main()
 		physics_in{1}.TRef = 273.15;			%Reference temperature at which A0 is determined [K]
 		physics_in{1}.n = 3;					%Glenns law creep exponent [-]
 		physics_in{1}.T_Ice = T_Ice;			%Temperature profile for the ice
-    	physics_in{1}.Hmatswitch = 0;			%Depth of ice-rock interface
+    	physics_in{1}.Hmatswitch = ["FLeft", "FRight"];			%Element groups indicating ice-rock boundary
 
 		%Interior of ice and rock: Contribution due to inertia
 		physics_in{2}.type = "Inertia";
@@ -90,7 +90,7 @@ function main()
     	physics_in{4}.Egroup = "Fracture";
     	physics_in{4}.energy = 10;			%Fracture release energy [J/m^2]
     	physics_in{4}.dummy = 0*1e10;		%Dummy stiffness to prevent walls from penetrating
-    	physics_in{4}.Hmatswitch = 0;		%Depth of ice-rock interface
+    	physics_in{4}.Hmatswitch = ["FLeft", "FRight"];		%Depth of ice-rock interface
 		physics_in{4}.T_ice = T_Ice;		%Temperature profile of ice
 	
 		%Fracture interface: Fluid flow and melting
@@ -196,7 +196,7 @@ function main()
     	solver.Solve();
     	
 		%save timedata 
-		physics.models{8}.updateSurfaceElevation(physics);
+		physics.models{6}.updateSurfaceElevation(physics);
     	TimeSeries.tvec(end+1) = physics.time;%times of outputs[s]
     	TimeSeries.Lfrac(end+1) = mesh.Area(9);%crevasse depth/length
 		TimeSeries.Qvec(end+1,:) = physics.models{5}.QMeltTot;%thermal fluxes ('Ice desorbtion', 'Flow produced', 'Melting process')
@@ -258,7 +258,7 @@ function plotres(physics, TimeSeries)
 		title("t="+string(physics.time));
 	subplot(2,1,2)
 		physics.PlotNodal("pd", 1000, "Fracture",1);
-		physics.models{4}.plotTotHeight(physics, 1000);
+		physics.models{5}.plotTotHeight(physics, 1000);
 		plot_boundaries(physics, 1000)
 
 	figure(72)

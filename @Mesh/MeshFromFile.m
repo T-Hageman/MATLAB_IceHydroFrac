@@ -118,7 +118,7 @@ function [Nodes, Elementgroups, Nodegroups, Area, rect] = MeshFromFile(obj, prop
 		tg = [];
 		for i=1:length(BE)
 			ycoords = Nodes(BE{i},2);
-			if (sum(ycoords>500)==length(ycoords))
+			if (sum(ycoords>200)==length(ycoords))
 				tg(end+1) = i;
 			end
 		end

@@ -269,23 +269,36 @@ which returns the C and D matrices defined above, and the force vector. Addition
 to determine the fluid flux, depending on the used model.
 
 \subsubsection{LakeBoundary.m}
-
-
-
-
+Adds the pressure boundary condition at the top surface, and performs processing for saving fracture inflows, and surface uplifts. Input parameters:
+\lstinputlisting[firstnumber=112,firstline=112,lastline=116,style=mystyle,title=main.m]{../main.m}
 
 
 \subsubsection{Constrainer.m}
+Applies boundary conditions to the defined element group:
+\lstinputlisting[firstnumber=119,firstline=119,lastline=122,style=mystyle,title=main.m]{../main.m}
+providing the name of the degree of freedom being constrained to all nodes of the element group, and the value to which it is being constrained to. These constraints are integrated within the tangential matrix and force vector through  allocation matrices $\bm{C}_{con}$ and $\bm{C}_{uncon}$, reordering the system into a constrained and unconstrained part. This allows the constrained system to be solved as:
+\begin{equation}
+	\bm{C}_{uncon}^T \bm{K} \bm{C}_{uncon} \mathbf{y} = -\left(\bm{C}_{uncon}^T\bm{f}+\bm{C}_{uncon}^T \bm{K} \bm{C}_{con}\mathbf{c}\right)
+\end{equation}
+with the values of the boundary constraints contained in the vector $\mathbf{c}$. After solving, the state vector is then incremented through:
+\begin{equation}
+	\mathbf{x}^{new} = \mathbf{x}^{old} + \bm{C}_{uncon}\mathbf{y} + \bm{C}_{con}\mathbf{c}
+\end{equation}
 
+\subsection{Meshes}
+\begin{figure}
+	\centering
+	\includegraphics[clip=true, width=12cm, trim={50 200 20 200}]{Figures/mesh.png}
+	\caption{Example of a mesh used within simulations (and included in the file mesh\_ 3000x300m.mphtxt), consisting of elements with size 2.5 m around the interface, and elements up to 30 m further from this interface.}
+	\label{fig:mesh}
+\end{figure}
+Meshes are generated using external meshing software (in the case of this studies, COMSOL, but this could be any other software), using quadratic Lagrangian quadrilateral elements. This mesh is then saved to a text file (containing lists of all nodal coordinates, and all interior and boundary elements). These meshes are created such that the path of the crevasse consists of element boundaries, enabling new interface elements to be easily inserted once the crevasse propagates. An example of such mesh is shown in \cref{fig:mesh}. 
 
+Within the code, this mesh is loaded into mesh.m via the input parameters:
+\lstinputlisting[firstnumber=55,firstline=55,lastline=59,style=mystyle,title=main.m]{../main.m}
+where the field "type" is used to indicate the mesh is externally generated and loaded from a file, with the path to this file indicated by FileName. nfrac indicates the number of interface elements present at the start of the simulation. These are inserted during the initialization of the mesh, and not yet present in the mesh represented by the mesh contained within the input file. Finally, ipcount and zeroWeight indacte the number of integration points used to perform the numerical integration, and if additional integration points are inserted at element boundaries. These additional integration points do not have any integration weights, thus do not alter the obtained solutions, but they do allow for history parameters (such as the plastic strains) to be recorded at element boundaries, facilitating the post-processing and enabling stresses to be evaluated at these boundaries (required to enable the crack to evaluate its propagation criterion). 
 
-
-
-
-\subsection{Mesh}
-
-
-
+\section{Post-processing}
 
 \section{Sample results}
 

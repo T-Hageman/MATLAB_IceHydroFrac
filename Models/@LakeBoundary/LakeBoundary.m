@@ -121,7 +121,7 @@ classdef LakeBoundary < BaseModel
 				obj.qCurrent(end+1) = q;
 				obj.dxCurrent(end+1)= X;
 				obj.dyCurrent(end+1)= Y-obj.refY;
-				obj.hMeltHist(end+1) = physics.models{4}.hmelt(1,1);
+				obj.hMeltHist(end+1) = physics.models{5}.hmelt(1,1);
 
                 fprintf("Total fluid flow:"+string(obj.QTotal(end))+"\n");
 
