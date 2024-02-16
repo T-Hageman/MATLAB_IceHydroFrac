@@ -298,9 +298,76 @@ Within the code, this mesh is loaded into mesh.m via the input parameters:
 \lstinputlisting[firstnumber=55,firstline=55,lastline=59,style=mystyle,title=main.m]{../main.m}
 where the field "type" is used to indicate the mesh is externally generated and loaded from a file, with the path to this file indicated by FileName. nfrac indicates the number of interface elements present at the start of the simulation. These are inserted during the initialization of the mesh, and not yet present in the mesh represented by the mesh contained within the input file. Finally, ipcount and zeroWeight indacte the number of integration points used to perform the numerical integration, and if additional integration points are inserted at element boundaries. These additional integration points do not have any integration weights, thus do not alter the obtained solutions, but they do allow for history parameters (such as the plastic strains) to be recorded at element boundaries, facilitating the post-processing and enabling stresses to be evaluated at these boundaries (required to enable the crack to evaluate its propagation criterion). 
 
-\section{Post-processing}
+\section{Post-processing and Sample results}
+\begin{figure}
+     \centering
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/PSurf.png}
+         \caption{Pressure and displacements}
+         \label{fig:1}
+     \end{subfigure}
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/Uplift.png}
+         \caption{Vertical displacement}
+         \label{fig:2}
+     \end{subfigure}
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/Thermals.png}
+         \caption{Thermal energy produced by friction, consumed by conduction, and the resulting effect on freezing}
+         \label{fig:3}
+     \end{subfigure}
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/FluidFluxes.png}
+         \caption{Water inflow into the crevasse (a), and rate of water inflow (b)}
+         \label{fig:4}
+     \end{subfigure}
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/OpeningHeights.png}
+         \caption{Mechanical and melting induced crevasse opening heights}
+         \label{fig:5}
+     \end{subfigure}
+     \begin{subfigure}[b]{8cm}
+         \centering
+         \includegraphics{../Figures/FractureLengths.png}
+         \caption{Crevasse depth/vertical crack length}
+         \label{fig:6}
+     \end{subfigure}
+     \caption{Generated figures during postprocessing}
+     \label{fig:results}
+\end{figure}
 
-\section{Sample results}
+Due to the long duration of full ice-sheet simulations, the code is set up to use a smaller geometry as example case. However, both mesh files are included, and this can be switched by referring to Meshes/mesh\_ Das\_ 25.mphtxt as input, using the 980 m thick geometry used for comparison with observations from Das et al. \citep{Das2008}. While the code is running, some results will be plotted, and outputs for post-processing will be saved every 10 time steps to the Results folder. 
+
+The matlab script Postprocessing.m can perform visualisation of these output files. this script requires the name of an output file:
+\lstinputlisting[firstnumber=9,firstline=9,lastline=11,style=mystyle,title=PostProcessing.m]{../PostProcessing.m}
+it also requires an output file from the end of the initialization time, which is used to define the relative displacements that have occurred during the actual crevasse propagation. 
+
+Within this file, the deformation of the ice-sheet and pressures within the crack, see \cref{fig:1}, are produced via the function:
+\lstinputlisting[firstnumber=309,firstline=309,lastline=309,style=mystyle]{../PostProcessing.m}
+using the state of the system, saved within the physics objects, a deformation scale sc with with the shown displacements are enhanced, and allowing for the ice to be either filled in (white for ice, grey for rock), or for this to be left transparent (much faster). 
+
+Within the output file, surface displacements are saved for convenient plotting, and can be plotted at several locations as:
+\lstinputlisting[firstnumber=56,firstline=56,lastline=60,style=mystyle]{../PostProcessing.m}
+Producing figure \cref{fig:2}.
+In a similar manner, the total thermal energy lost into the ice due to conduction, produced due to friction, and used to freeze the crevasse walls are plotted (See \cref{fig:3}):
+\lstinputlisting[firstnumber=78,firstline=78,lastline=89,style=mystyle]{../PostProcessing.m}
+which also uses the script plotsparsemarkers \citep{SparseMarkers} to plot evenly spaced markers that do not correspond to all data points (which are saved every 2 seconds). Flow rates are plotted similarly, \cref{fig:4}:
+\lstinputlisting[firstnumber=113,firstline=113,lastline=113,style=mystyle]{../PostProcessing.m}
+\lstinputlisting[firstnumber=141,firstline=141,lastline=141,style=mystyle]{../PostProcessing.m}
+using data extracted from \citep{Das2008} as reference via the function:
+\lstinputlisting[firstnumber=235,firstline=235,lastline=235,style=mystyle]{../PostProcessing.m}
+Finally, crevasse opening height, \cref{fig:5}, and crack lengths, \cref{fig:6} as:
+\lstinputlisting[firstnumber=176,firstline=176,lastline=176,style=mystyle]{../PostProcessing.m}
+\lstinputlisting[firstnumber=195,firstline=195,lastline=201,style=mystyle]{../PostProcessing.m}
+
+
+
+
 
 
 \bibliography{references}
