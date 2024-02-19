@@ -94,7 +94,9 @@ MATLAB, Hydraulic fracture, Greenland Ice Sheet, Crevasse, Numerical simulation,
 \newpage
 \pagenumbering{arabic}
 \section{Introduction}
-\todo{Intro sentences}
+Water-driven crevasses can have a large impact on the overall behaviour of ice-sheets. They transfer water to the bed, reducing friction at the base and accelerating ice flow. Furthermore, they have the potential to cause premature ice-cliff collapses. However, these crevasses are complicated to capture through computational modelling, due to the range of length-scales involved within the cracking process. Additional effects due to thermal energy produced by friction, and lost due to conduction into the ice, further complicate the modelling as the resulting melting will alter the crack opening, and can potentially halt the propagation due to freezing. Here, we describe a finite element model capable of simulating hydro-fracture through linear-elastic and visco-plastic ice. This model uses interface elements to represent the crack path, and through a two-scale description allows for accurately capturing the phenomena surrounding crevasse propagation.
+
+For a more detialed description of the results from this model, and a discussion on the relevance of including thermals and using a visco-plastic rheology, see \citeMe{}.
 
 \subsection{Basic usage}
 All parameters are set within and relevant functions are called from the matlab file "main.m", and running this file performs the full simulation. Parameters are also set within this file, for instance defining the visco-plastic model through:
@@ -150,7 +152,7 @@ with the weak form of this contribution given by:
 \begin{equation}
 \int_\Omega \bm{B}^T \bm{D} \bm{B}\bm{u}^{t+\Delta t} - \bm{B}^T \bm{D} \varepsilon_{\text{v}}^{t+\Delta t}\;\text{d}\Omega \label{eq:weak_mom}
 \end{equation}
-with the plastic strains determined once per time increment, based on the displacements at the end of the previous time increment:
+with the plastic strains determined once per time increment using glens law \citep{Glen1955,Weertman1983}, based on the displacements at the end of the previous time increment:
 \begin{equation}
 	\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t} = \mathbf{\varepsilon}_{\text{v}}^{t}+\Delta t A \left( \left({\mathbf{u}^{t}}^T\bm{B}^T-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right) \bm{D}^T \bm{J_2}\bm{D} \left(\bm{B} \mathbf{u}^t-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right) \right)^{\frac{n-1}{2}}\bm{J_2}\bm{D} \left(\bm{B} \mathbf{u}^t-\mathbf{\varepsilon}_{\text{v}}^{t+\Delta t}\right)
 \end{equation}
@@ -223,7 +225,7 @@ which are compared to the temperature-dependent tensile strength. If the propaga
 \subsubsection{FractureFluid.m}
 FractureFluid.m implements all the fluid flow and thermal related equations for the water within the crevasse, and is defined by the input parameters:
 \lstinputlisting[firstnumber=96,firstline=96,lastline=109,style=mystyle,title=main.m]{../main.m}
-Notably, the input "FlowModel" allows selecting either turbulent flow, based on a friction factor approach via:
+Notably, the input "FlowModel" allows selecting either turbulent flow, based on a friction factor approach via \citep{Gauckler1867, Strickler1981}:
 \begin{equation}
     q = -2\rho_{\text{w}}^{-\frac{1}{2}}k_{\text{wall}}^{-\frac{1}{6}}f_0^{-\frac{1}{2}} h^{\frac{5}{3}}\left|\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right|^{-\frac{1}{2}}\left(\frac{\partial p}{\partial \xi}-\rho_{\text{w}} \mathbf{g} \cdot \mathbf{s}\right) \label{eq:qx}
 \end{equation}
@@ -233,7 +235,7 @@ or laminar flow, using the analytic solution for uni-directional pressure-driven
 \end{equation}
 with this choice of model being set as either "FrictionFactor" for turbulent flow, or "CubicLaw" for laminar flow. This choice is applied to the complete crevasse, and no checking is performed whether the fluid velocity warrants laminar or turbulent flow (based on simulations performed for our paper, the Reynolds number indicates turbulent for our use cases). 
 
-This fluid flux is used within the mass balance:
+This fluid flux is used within the mass balance \citep{Boone1990, deBorst2017, Hageman2019}:
 \begin{equation}
     \frac{\partial q}{\partial \xi} + \dot{h} - \frac{\rho_{\text{i}}}{\rho_{\text{w}}} \dot{h}_{\text{melt}}+ \frac{h}{K_{\text{w}}}\dot{p} = 0 \label{eq:MassBalance}
 \end{equation}
@@ -292,7 +294,7 @@ with the values of the boundary constraints contained in the vector $\mathbf{c}$
 	\caption{Example of a mesh used within simulations (and included in the file mesh\_ 3000x300m.mphtxt), consisting of elements with size 2.5 m around the interface, and elements up to 30 m further from this interface.}
 	\label{fig:mesh}
 \end{figure}
-Meshes are generated using external meshing software (in the case of this studies, COMSOL, but this could be any other software), using quadratic Lagrangian quadrilateral elements. This mesh is then saved to a text file (containing lists of all nodal coordinates, and all interior and boundary elements). These meshes are created such that the path of the crevasse consists of element boundaries, enabling new interface elements to be easily inserted once the crevasse propagates. An example of such mesh is shown in \cref{fig:mesh}. 
+Meshes are generated using external meshing software (in the case of this studies, COMSOL \citep{COMSOL2020a}, but this could be any other software), using quadratic Lagrangian quadrilateral elements. This mesh is then saved to a text file (containing lists of all nodal coordinates, and all interior and boundary elements). These meshes are created such that the path of the crevasse consists of element boundaries, enabling new interface elements to be easily inserted once the crevasse propagates. An example of such mesh is shown in \cref{fig:mesh}. 
 
 Within the code, this mesh is loaded into mesh.m via the input parameters:
 \lstinputlisting[firstnumber=55,firstline=55,lastline=59,style=mystyle,title=main.m]{../main.m}
@@ -345,7 +347,7 @@ Due to the long duration of full ice-sheet simulations, the code is set up to us
 
 The matlab script Postprocessing.m can perform visualisation of these output files. this script requires the name of an output file:
 \lstinputlisting[firstnumber=9,firstline=9,lastline=11,style=mystyle,title=PostProcessing.m]{../PostProcessing.m}
-it also requires an output file from the end of the initialization time, which is used to define the relative displacements that have occurred during the actual crevasse propagation. 
+it also requires an output file from the end of the initialization time, which is used to define the relative displacements that have occurred during the actual crevasse propagation. To facilitate describing the post-processing preocedure, two output files are included: Reference\_ 150.mat, containing results just before the end of the initialization period, and Results\_ 1950.mat, having results after 1 hour of simulated time (approx. 1 day of running at 8 cpu cores required). 
 
 Within this file, the deformation of the ice-sheet and pressures within the crack, see \cref{fig:1}, are produced via the function:
 \lstinputlisting[firstnumber=309,firstline=309,lastline=309,style=mystyle]{../PostProcessing.m}
@@ -369,7 +371,8 @@ Finally, crevasse opening height, \cref{fig:5}, and crack lengths, \cref{fig:6} 
 
 
 
-
+\section{References}
+\renewcommand{\bibsection}{}
 \bibliography{references}
 
 \end{document}

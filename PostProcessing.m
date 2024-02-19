@@ -7,8 +7,8 @@ addpath(genpath('./Shapes'))
 
 
 %Define file name for inputs, and file name for refernce displacements
-fileName = "Results/640.mat";
-fileZero = "Results/100.mat";
+fileZero = "Reference150.mat";
+fileName = "Results1950.mat";
 
 %scale for deformations
 defScale = 1000;
