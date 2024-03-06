@@ -2,7 +2,7 @@
 
 \usepackage{hyperref}
 
-\journal{ }
+\journal{   }
 
 \usepackage{amsmath} %added for maths environments (equation and align)
 \usepackage{amssymb}
@@ -10,12 +10,12 @@
 \usepackage{bm} %bold symbols by using \bm
 \usepackage{mathtools, nccmath} %added for \xrightleftharpoons
 \usepackage{stmaryrd} %math symbols
-
 \usepackage{subcaption} %allowing for subcaptions and subfigures
 \captionsetup[sub]{font=normalsize}%normalsize
 
 \usepackage{algorithm} %added for algorithm box
 \usepackage{algpseudocode}
+\biboptions{sort&compress}
 
 \usepackage[autostyle]{csquotes}
 \MakeOuterQuote{"}
@@ -52,7 +52,7 @@
 	autogobble=true
 }
 
-\newcommand{\citeMe}{\href{https://doi.org/10.1016/j.cma.2023.116235}{T Hageman, JZ Mejia,R Duddu, and E {Martinez-Pa{\~n}eda}. \textit{Ice Viscosity Governs Hydraulic Fracture Causing Rapid Drainage of Supraglacial Lakes}. The cryosphere} \citep{Hageman}}
+\newcommand{\citeMe}{\href{https://doi.org/10.1016/j.cma.2023.116235}{T Hageman, JZ Mejia, R Duddu, and E {Martinez-Pa{\~n}eda}. \textit{Ice Viscosity Governs Hydraulic Fracture Causing Rapid Drainage of Supraglacial Lakes}. The Cryosphere} \citep{Hageman}}
 
 \begin{document}
 \pagenumbering{gobble}
@@ -71,7 +71,7 @@
 \address[3]{Department of Civil and Environmental Engineering, Department of Earth and Environmental Sciences, Vanderbilt University, Nashville, TN 37235, USA}
 
 \begin{abstract}
-Documentation that accompanies the \textit{MATLAB} code \href{https://github.com/T-Hageman/MATLAB_IceHydroFrac}{IceHydroFrac, available from \textcolor{blue}{here}}. This documentation explains the usage of the implemented finite element framework, and highlight the main files.  
+Documentation that accompanies the \textit{MATLAB} code \href{https://github.com/T-Hageman/MATLAB_IceHydroFrac}{IceHydroFrac, available from \textcolor{blue}{here}}. This documentation explains the usage of the implemented finite element framework, and highlight the main files.  Overall, this code allows the simulation of a single propagating crevasse through an ice-sheet, driven by a surface lake. Upon reaching the base, sideways cracks are included, allowing the subsequent uplifting to be captured. As the code allows for both visco-plastic and linear-elastic rheologies, it has been used to demonstrate the importance of including viscous effects, even on the relatively short time-scales involved with fracture propagation. As thermal effects are also included, an in-depth look at the effects of melting/freezing, thermal conduction of heat into the ice, and frictional heating within the crevasse is made possible. For further findings, see the main paper at \citeMe{}. 
 
 If using this module, please cite: \citeMe{}.
 \end{abstract}
@@ -94,11 +94,14 @@ MATLAB, Hydraulic fracture, Greenland Ice Sheet, Crevasse, Numerical simulation,
 \newpage
 \pagenumbering{arabic}
 \section{Introduction}
-Water-driven crevasses can have a large impact on the overall behaviour of ice-sheets. They transfer water to the bed, reducing friction at the base and accelerating ice flow. Furthermore, they have the potential to cause premature ice-cliff collapses. However, these crevasses are complicated to capture through computational modelling, due to the range of length-scales involved within the cracking process. Additional effects due to thermal energy produced by friction, and lost due to conduction into the ice, further complicate the modelling as the resulting melting will alter the crack opening, and can potentially halt the propagation due to freezing. Here, we describe a finite element model capable of simulating hydro-fracture through linear-elastic and visco-plastic ice. This model uses interface elements to represent the crack path, and through a two-scale description allows for accurately capturing the phenomena surrounding crevasse propagation.
+Water-driven crevasses can have a large impact on the overall behaviour of ice-sheets \citep{Boon2003,Phillips2010a,Poinar2021,Krawczynski2009}. They transfer water to the bed, reducing friction at the base and accelerating ice flow \citep{Fountain2005,Smith2015,Dow2015}. Furthermore, they have the potential to cause premature ice-cliff collapses \citep{Scambos2009,McGrath2012,Buck2023}. However, these crevasses are complicated to capture through computational modelling, due to the range of length-scales involved within the cracking process \citep{Rice2015}. Additional effects due to thermal energy produced by friction, and lost due to conduction into the ice, further complicate the modelling as the resulting melting will alter the crack opening \citep{Andrews2022}, and can potentially halt the propagation due to freezing. 
 
-For a more detialed description of the results from this model, and a discussion on the relevance of including thermals and using a visco-plastic rheology, see \citeMe{}.
+Here, we describe a finite element model capable of simulating hydro-fracture through linear-elastic and visco-plastic ice. This model uses interface elements to represent the crack path, and through a two-scale description allows for accurately capturing the phenomena surrounding crevasse propagation. The MATLAB code has been used and verified to work in MATLAB versions 2023b and 2022b, with earlier versions also potentially compatible (but not verified). In the remainder of this documentation, the basic usage of this code will be discussed in \cref{sec:usage}, after which \cref{sec:models} will explain the individual components used to represent the physics relevant to ice sheet hydro-fracture. Finally, in \cref{sec:postprocessing} the resulting output files are discussed, and the post-processing procedures are explained. 
+
+For a more detailed description of the results from this model, and a discussion on the relevance of including thermals and using a visco-plastic rheology, see \citeMe{}.
 
 \subsection{Basic usage}
+\label{sec:usage}
 All parameters are set within and relevant functions are called from the matlab file "main.m", and running this file performs the full simulation. Parameters are also set within this file, for instance defining the visco-plastic model through:
 \lstinputlisting[firstnumber=64,firstline=64,lastline=73,style=mystyle,title=main.m]{../main.m}
 These parameters are automatically passed along to the relevant physics models once they are initialized. As such, no changes in other files are needed to adapt the simulation set-up for other parameters. 
@@ -134,6 +137,7 @@ In addition to these time series, full outputs are saved after every 10 time ste
 These output files are appended with the number of the time increment during which the output is saved, and they contain all information required to restart a previously interrupted simulation. 
 
 \subsection{Models}
+\label{sec:models}
 The models implement parts of the relevant physics. At initialization time, models are constructed by passing their relevant input parameters as:
 \lstinputlisting[firstnumber=47,firstline=47,lastline=47,style=mystyle,title=Models/@ViscoElastic/ViscoElastic.m]{../Models/@ViscoElastic/ViscoElastic.m}
 This also saves pointers to the physics and mesh objects, allowing interacting with these whenever needed. The physics implemented by the model are added within the GetKf function, called whenever an updated tangent stiffness matrix and/or force vector is needed:
@@ -301,6 +305,7 @@ Within the code, this mesh is loaded into mesh.m via the input parameters:
 where the field "type" is used to indicate the mesh is externally generated and loaded from a file, with the path to this file indicated by FileName. nfrac indicates the number of interface elements present at the start of the simulation. These are inserted during the initialization of the mesh, and not yet present in the mesh represented by the mesh contained within the input file. Finally, ipcount and zeroWeight indacte the number of integration points used to perform the numerical integration, and if additional integration points are inserted at element boundaries. These additional integration points do not have any integration weights, thus do not alter the obtained solutions, but they do allow for history parameters (such as the plastic strains) to be recorded at element boundaries, facilitating the post-processing and enabling stresses to be evaluated at these boundaries (required to enable the crack to evaluate its propagation criterion). 
 
 \section{Post-processing and Sample results}
+\label{sec:postprocessing}
 \begin{figure}
      \centering
      \begin{subfigure}[b]{8cm}

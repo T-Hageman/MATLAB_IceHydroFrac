@@ -9,3 +9,5 @@ Documentation/main.out
 Documentation/main.spl
 Documentation/main.synctex.gz
 Documentation/main.toc
+Documentation/main.fdb_latexmk
+Documentation/main.fls
