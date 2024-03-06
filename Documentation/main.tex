@@ -304,6 +304,40 @@ Within the code, this mesh is loaded into mesh.m via the input parameters:
 \lstinputlisting[firstnumber=55,firstline=55,lastline=59,style=mystyle,title=main.m]{../main.m}
 where the field "type" is used to indicate the mesh is externally generated and loaded from a file, with the path to this file indicated by FileName. nfrac indicates the number of interface elements present at the start of the simulation. These are inserted during the initialization of the mesh, and not yet present in the mesh represented by the mesh contained within the input file. Finally, ipcount and zeroWeight indacte the number of integration points used to perform the numerical integration, and if additional integration points are inserted at element boundaries. These additional integration points do not have any integration weights, thus do not alter the obtained solutions, but they do allow for history parameters (such as the plastic strains) to be recorded at element boundaries, facilitating the post-processing and enabling stresses to be evaluated at these boundaries (required to enable the crack to evaluate its propagation criterion). 
 
+The mesh class also allows for inserting new interface elements to propagate the discontinuity via:
+\lstinputlisting[firstnumber=1,firstline=1,lastline=1,style=mystyle,title=@Mesh/Propagate\_Disc\_New.m]{../@Mesh/Propagate_Disc_New.m}
+which duplicates nodes in the path of the crack to add a new interface element to the interface element mesh group, renumbers nodes to match the new mesh, and copies the current state of degrees of freedom to initialize the newly created nodes.
+
+\subsection{Shapes}
+The classes within this folder provide basic shape functions, and are used by the mesh to provide shape functions and integration weights. The included shape functions are square quadratic Bernstein surface elements (Q9B), quadratic Lagrangian and Bernstein line elements (L3 and L3B), and interface elements (LI6).
+
+\subsection{Physics}
+This class provides all the support required for constructing and managing state and force vectors, tangential matrices, and boundary constraints. Most notably, during its initialization it generates an array of all the physical models:
+\lstinputlisting[firstnumber=31,firstline=31,lastline=39,style=mystyle,title=@Physics/Physics.m]{../@Physics/Physics.m}
+from which it then is able to construct the tangential matrix when required:
+\lstinputlisting[firstnumber=69,firstline=69,lastline=72,style=mystyle]{../@Physics/Physics.m}
+This calls each of the models, and passes a handle to the physics object itself through which the individual models can add their contributions.  In a similar manner, actions which should be performed once at the end of each solution step, or any time irreversibilites occur, are performed via:
+\lstinputlisting[firstnumber=75,firstline=75,lastline=87,style=mystyle]{../@Physics/Physics.m}
+
+The physics class also provides the ability for post-processing the results through the function;
+\lstinputlisting[firstnumber=28,firstline=28,lastline=29,style=mystyle]{../@Physics/Physics.m}
+This function requires the name of a degree of freedom (for instance "dx" for the horizontal displacements, a scale to indicate whether the mesh is plotted in deformed (scale$>$0) or undeformed (scale$=$0) configuration, and the name of an element group on which to plot the results. Similarly, the "PlotIP" function plots integration-point specific variables, for instance stresses.
+
+\subsection{Dofspace}
+This class converts the node numbering, degree of freedom type, and solution step to an index for the degree of freedom, corresponding to its location within the unconstrained state vector and tangential matrix. Specific types of degree of freedom are registered through:
+\lstinputlisting[firstnumber=21,firstline=21,lastline=21,style=mystyle,title=@DofSpace/DofSpace.m]{../@DofSpace/DofSpace.m}
+with the numbering scheme saved within "DofNumbering".
+
+After adding the specific degrees of freedom types, degrees of freedom can be added to nodes through:
+\lstinputlisting[firstnumber=45,firstline=45,lastline=45,style=mystyle]{../@DofSpace/DofSpace.m}
+These functions automatically check for duplicates, such that each model can safely add all the degrees of freedom relevant to itself, without taking into account potential interactions with other models. During the finite element assembly, the managed degrees of freedom indices are requestable by providing the degree of freedom type index and the node number:
+\lstinputlisting[firstnumber=73,firstline=73,lastline=73,style=mystyle]{../@DofSpace/DofSpace.m}
+
+\subsection{Solver}
+The solver class implements a monolithic Newton-Raphson type nonlinear solver, including the ability to perform linear line-searches to improve the convergence rate and stability. During its creation, it gets linked to the physics object, such that it can automatically request updated tangential matrices. Input parameters controlling the solver behaviour are:
+\lstinputlisting[firstnumber=134,firstline=134,lastline=139,style=mystyle,title=main.m]{../main.m}
+
+
 \section{Post-processing and Sample results}
 \label{sec:postprocessing}
 \begin{figure}

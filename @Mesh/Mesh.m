@@ -20,7 +20,7 @@ classdef Mesh < handle
         [N, G, w] = getVals(obj, group, elem);
         [n, t] = getNormals(obj, group, elem);
         elems = getConnected(obj, groupnum, node);
-        Propagate_Disc(obj, physics, tipnode, direction);
+
 		Propagate_Disc_New(obj, physics);
 
 		[direction, elem, ips] = getNextFracture(obj);

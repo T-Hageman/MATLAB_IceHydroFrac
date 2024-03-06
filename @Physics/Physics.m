@@ -1,6 +1,6 @@
 classdef Physics < handle
-    %PHYSICS Summary of this class goes here
-    %   Detailed explanation goes here
+    %PHYSICS Class that handles the definitions and assembly of stiffness
+	%matrices, constraints, and statevectors
     
     properties
         mesh
